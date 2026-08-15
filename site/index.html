@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dusknote · your health notes, on your phone, yours forever</title>
+<meta name="description" content="Dusknote is a free forever, open-source tracker for any chronic health condition. Entries live on your device, back up to a Google Sheet in your own Drive, and export as a report you can share with anyone you choose.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='2' y='2' width='96' height='96' rx='24' fill='%2312151d'/%3E%3Cline x1='22' y1='32' x2='78' y2='32' stroke='%238e9a73' stroke-width='7' stroke-linecap='round'/%3E%3Cline x1='22' y1='50' x2='66' y2='50' stroke='%238e9a73' stroke-width='7' stroke-linecap='round' opacity='.72'/%3E%3Cline x1='22' y1='68' x2='54' y2='68' stroke='%238e9a73' stroke-width='7' stroke-linecap='round' opacity='.46'/%3E%3C/svg%3E">
+<style>
+  @font-face {
+    font-family: 'Atkinson Hyperlegible';
+    src: url('fonts/atkinson-hyperlegible-latin-400-normal.woff2') format('woff2');
+    font-weight: 400;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Atkinson Hyperlegible';
+    src: url('fonts/atkinson-hyperlegible-latin-700-normal.woff2') format('woff2');
+    font-weight: 700;
+    font-display: swap;
+  }
+  :root {
+    --bg: #12151d;
+    --card: #1a1f2b;
+    --text: #c6ccd8;
+    --muted: #808a9c;
+    --muted-dim: #6d7688;
+    --accent: #8e9a73;
+    --on-accent: #151810;
+    --border-faint: rgba(128, 138, 156, 0.27);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Atkinson Hyperlegible', system-ui, sans-serif;
+    font-size: 18px;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+  .col { max-width: 640px; }
+
+  /* Hero */
+  header { padding: 72px 0 56px; }
+  .mark-row { display: flex; align-items: center; gap: 14px; margin-bottom: 40px; }
+  .mark-row .name { font-size: 22px; font-weight: 700; }
+  h1 { font-size: 40px; font-weight: 700; line-height: 1.15; margin: 0 0 18px; }
+  .lede { font-size: 20px; color: var(--muted); margin: 0 0 32px; }
+  .cta-row { display: flex; gap: 14px; flex-wrap: wrap; }
+  .btn {
+    display: inline-block;
+    padding: 14px 26px;
+    border-radius: 12px;
+    font-size: 19px;
+    font-weight: 700;
+    text-decoration: none;
+    min-height: 56px;
+    line-height: 28px;
+  }
+  .btn-primary { background: var(--accent); color: var(--on-accent); }
+  .btn-secondary { border: 1px solid var(--border-faint); color: var(--text); }
+
+  /* Sections */
+  section { padding: 40px 0; }
+  h2 { font-size: 26px; font-weight: 700; margin: 0 0 20px; }
+  p { margin: 0 0 16px; }
+  .muted { color: var(--muted); }
+
+  /* How it works */
+  .how { display: grid; gap: 14px; }
+  .how .card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 20px 22px;
+  }
+  .how b { display: block; margin-bottom: 4px; }
+  .how p { margin: 0; color: var(--muted); }
+
+  /* Screenshots */
+  .shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 240px)); gap: 22px; justify-content: start; }
+  .shots figure { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+  .shots img { width: 100%; height: auto; border-radius: 14px; border: 1px solid var(--border-faint); display: block; }
+  .shots figcaption { font-size: 14px; color: var(--muted-dim); }
+  /* The report is paper-shaped, not phone-shaped: give it a double cell when columns allow. */
+  @media (min-width: 480px) {
+    .shots figure.wide { grid-column: span 2; }
+  }
+
+  /* Setup */
+  .paths { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .paths .card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .paths b { font-size: 19px; }
+  .paths p { margin: 0; color: var(--muted); }
+  .paths a { color: var(--accent); font-weight: 700; text-decoration: none; }
+  .paths a:hover { text-decoration: underline; }
+
+  /* Tip */
+  .tip { border-top: 1px solid var(--border-faint); }
+  .tip p { color: var(--muted); }
+  .tip a { color: var(--accent); font-weight: 700; text-decoration: none; }
+  .tip a:hover { text-decoration: underline; }
+
+  /* Footer */
+  footer {
+    border-top: 1px solid var(--border-faint);
+    padding: 36px 0 56px;
+    font-size: 15px;
+    color: var(--muted-dim);
+  }
+  footer a { color: var(--muted); text-decoration: none; }
+  footer a:hover { color: var(--text); }
+  footer .row { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 14px; }
+  a:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="mark-row">
+      <svg width="40" height="40" viewBox="0 0 100 100" aria-hidden="true">
+        <rect x="2" y="2" width="96" height="96" rx="24" fill="var(--card)"/>
+        <line x1="22" y1="32" x2="78" y2="32" stroke="var(--accent)" stroke-width="7" stroke-linecap="round"/>
+        <line x1="22" y1="50" x2="66" y2="50" stroke="var(--accent)" stroke-width="7" stroke-linecap="round" opacity="0.72"/>
+        <line x1="22" y1="68" x2="54" y2="68" stroke="var(--accent)" stroke-width="7" stroke-linecap="round" opacity="0.46"/>
+      </svg>
+      <span class="name">Dusknote</span>
+    </div>
+    <div class="col">
+      <h1>Your health notes, on your phone, yours forever.</h1>
+      <p class="lede">Dusknote is a free forever (no upsells), open-source tracker for any chronic health condition. Entries live on your device, back up to a Google Sheet in your own Drive, and export as a report you can share with anyone you choose.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="#setup">Set it up</a>
+        <a class="btn btn-secondary" href="https://github.com/kgunette/dusknote">View on GitHub</a>
+      </div>
+    </div>
+  </header>
+
+  <section class="col">
+    <h2>Why this exists</h2>
+    <p>Dusknote exists because I lost a few years of health data to a failed phone backup of a notes app. When I went to replace it with an app built for health tracking, I kept finding that they all charged for basic features and would keep my own health information behind their subscription. I built the tracker I actually wanted: one where the data is easy to track, read, and export as a report, readable in a plain spreadsheet and PDFs as a backup, and owned by no one but you.</p>
+  </section>
+
+  <section>
+    <h2>How it works</h2>
+    <div class="how">
+      <div class="card"><b>Your device holds all of the data</b><p>Entries save to your phone.</p></div>
+      <div class="card"><b>Your Google Sheet is the backup</b><p>It lives in your own Drive. Open it, sort it, export it, with or without the app. Once a month Dusknote also saves a PDF of everything tracked to date to your Google Drive automatically, as a second form of backup.</p></div>
+      <div class="card"><b>There is no server</b><p>No account to create, no company in the middle, nothing that can shut down or start charging you for your own history later. Your copy talks only to your own Google Drive.</p></div>
+      <div class="card"><b>No one can see your data</b><p>Your data always stays only with your accounts and your device. The app's one outside contact is asking GitHub whether a newer version exists, and that check carries nothing about you.</p></div>
+      <div class="card"><b>Make it yours</b><p>Dusknote ships condition-neutral, and is easy to customize and edit within the app to make it truly reflect your condition: your vocabulary, your rating words, your name for the condition you track.</p></div>
+      <div class="card"><b>Calm by design</b><p>The screen is dark and low on glare, with a big button on the main screen to log an entry. Reaching for it during a 3am episode is quick, and easy on the eyes.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2 style="margin-bottom: 6px;">What it looks like</h2>
+    <p style="color: var(--muted-dim); font-size: 15px; margin: 0 0 22px;">Shown with invented sample data.</p>
+    <div class="shots">
+      <figure>
+        <img src="img/log-feed.png" alt="The log: entries under month headers, with an event row and a Log an episode button" width="780" height="1688">
+        <figcaption>The log. Your days, newest first.</figcaption>
+      </figure>
+      <figure>
+        <img src="img/stats.png" alt="Stats: a month calendar shaded by rating, episode day counts, and a with-and-without split for a watched factor" width="780" height="1688">
+        <figcaption>Stats. Each month as a calendar, with the patterns you asked it to watch.</figcaption>
+      </figure>
+      <figure>
+        <img src="img/entry-attempt.png" alt="Logging a treatment: the time it was taken and a Did it help question" width="780" height="1688">
+        <figcaption>Treatments allow you to track their effectiveness.</figcaption>
+      </figure>
+      <figure>
+        <img src="img/settings.png" alt="Settings: backup status showing All backed up, with links to open the sheet and the monthly backups" width="780" height="1688">
+        <figcaption>Two backups, both in your own Drive.</figcaption>
+      </figure>
+      <figure class="wide">
+        <img src="img/report-pdf.png" alt="The first page of a printed report: monthly counts and treatment outcomes on paper" width="1205" height="1560">
+        <figcaption>Exportable report for anyone you'd like to share your notes with.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section id="setup">
+    <h2>Set it up</h2>
+    <div class="col">
+      <p>You will create your own copy, and you will need to use three free accounts (GitHub, Vercel, Google). It should take about an hour to set up, and you can complete it with either an AI assistant walking you through every step or manually on your own; the setup guide explains how to do both.</p>
+      <a class="btn btn-primary" href="https://github.com/kgunette/dusknote/blob/main/docs/setup-guide.md">Read the setup guide</a>
+    </div>
+  </section>
+
+  <section class="tip col">
+    <p>Dusknote is free and always will be. If it's been useful and you're able, <a href="https://ko-fi.com/H3E123QLE1">a&nbsp;tip</a>&nbsp;helps me keep maintaining and improving it.</p>
+  </section>
+
+  <footer>
+    <div class="row">
+      <span>Made with <span style="color: var(--accent);">&hearts;</span> in Brooklyn, by <a href="https://karenschoellkopf.com">Karen Schoellkopf</a></span>
+      <a href="https://github.com/kgunette/dusknote">The code</a>
+      <a href="https://github.com/kgunette/dusknote/blob/main/LICENSE">MIT license</a>
+    </div>
+    <p>Dusknote is a place to record what you observe about your own health. It is not a medical device, and does not offer medical advice in any way.</p>
+  </footer>
+</div>
+
+</body>
+</html>

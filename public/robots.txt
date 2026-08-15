@@ -1,0 +1,5 @@
+# Every deployment of this app is one person's private health record.
+# Nothing here should ever appear in search results, including the
+# existence of the deployment itself.
+User-agent: *
+Disallow: /

@@ -1,0 +1,351 @@
+/* The report builder. Controls sit on the app's dark ground; the preview "paper" is the one
+   light surface in the whole app (Source Serif, warm off-white), matching the exported PDF. */
+
+@import '@fontsource/source-serif-4/400.css';
+@import '@fontsource/source-serif-4/600.css';
+@import '@fontsource/source-serif-4/400-italic.css';
+
+.report-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Label on its own line, options wrapping cleanly beneath — so nothing collides on a phone. */
+.rc-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rc-lbl {
+  color: var(--muted);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.rc-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 22px;
+}
+
+.rc-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.0625rem;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.rc-opt input {
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  accent-color: var(--accent);
+  padding: 0;
+  flex-shrink: 0;
+}
+
+/* The controls inside also carry the real `disabled` attribute (see ReportScreen). pointer-events
+   alone stopped the mouse but left them reachable by Tab and operable by Space, so a keyboard user
+   could toggle settings that look switched off. */
+.rc-group.disabled {
+  opacity: 0.34;
+  pointer-events: none;
+}
+
+/* Segmented toggle for the pick-one rows (Date range, Rating). */
+.seg {
+  display: inline-flex;
+  align-self: flex-start;
+  max-width: 100%;
+  border: 1px solid var(--border-faint);
+  border-radius: 11px;
+  overflow: hidden;
+}
+
+.seg-opt {
+  padding: 11px 18px;
+  font-size: 1.0625rem;
+  background: none;
+  border: 0;
+  color: var(--text);
+}
+
+.seg-opt + .seg-opt {
+  border-left: 1px solid var(--border-faint);
+}
+
+.seg-opt.on {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+}
+
+.rc-dates {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.rc-dates .field {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---- The printed report "paper" (preview mirrors the exported PDF): pure white so
+   it prints clean, with a clear section → month → entry rhythm. ---- */
+.paper {
+  background: #ffffff;
+  color: #20211d;
+  border-radius: 10px;
+  padding: 30px 28px;
+  font-family: 'Source Serif 4', Georgia, serif;
+  line-height: 1.5;
+}
+
+.paper h1 {
+  font-family: inherit;
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+  color: #20211d;
+}
+
+.p-sub {
+  font-size: 0.9375rem;
+  color: #6b6b60;
+  margin-top: 4px;
+}
+
+.p-rule {
+  border: 0;
+  border-top: 1px solid #d8d5c8;
+  margin: 16px 0;
+}
+
+/* Rating key: compact 0-1-2 · 3-4-5 · — grid in a white box (no fill, printer-friendly). */
+.sev-keybox {
+  border: 1px solid #e2dfd2;
+  border-radius: 5px;
+  padding: 10px 13px;
+}
+
+.sev-keyhead {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #20211d;
+  margin-bottom: 6px;
+}
+
+.sev-keygrid {
+  display: grid;
+  grid-template-rows: repeat(3, auto);
+  grid-auto-flow: column;
+  gap: 4px 24px;
+  font-size: 0.8125rem;
+  color: #54544a;
+}
+
+.sev-keygrid .kn {
+  color: #20211d;
+  font-weight: 600;
+  display: inline-block;
+  width: 1.3em;
+}
+
+/* Major section header (Monthly counts, Timeline): outranks a month, heavier rule beneath. */
+.p-section {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: #20211d;
+  margin: 24px 0 0;
+}
+
+.p-section-rule {
+  border: 0;
+  border-top: 1.4px solid #b9b6a6;
+  margin: 6px 0 12px;
+}
+
+/* Monthly-counts table: centered numbers, one clean header rule, no-data spanned. */
+.count-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.count-table th {
+  text-align: center;
+  font-weight: 600;
+  color: #6b6b60;
+  font-size: 0.8125rem;
+  padding: 0 6px 5px;
+  border-bottom: 1px solid #cfccbe;
+}
+
+.count-table th.l,
+.count-table td.l {
+  text-align: left;
+  padding-left: 0;
+}
+
+.count-table td {
+  text-align: center;
+  color: #20211d;
+  padding: 5px 6px;
+  border-bottom: 0.5px solid #edeae0;
+}
+
+.count-table td b {
+  font-weight: 600;
+}
+
+.count-table tr.nd td {
+  color: #75756a;
+  font-style: italic;
+  text-align: left;
+}
+
+/* A clarifying note beside a table (What helped's range + "counts attempts, not days"). Quieter
+   than the data it qualifies, but still print-legible on paper a doctor is reading. */
+.p-note {
+  font-size: 0.75rem;
+  color: #6b6b60;
+  margin: 7px 0 0;
+  line-height: 1.4;
+}
+
+/* Leading variant: sits above its table, so the scope is read before the numbers it governs. */
+.p-note-lead {
+  margin: -4px 0 9px;
+}
+
+/* Month divider inside the timeline: a step below the section, on a lighter rule. */
+/* Month label with its count line left-aligned directly beneath it (never beside it:
+   a right-aligned count line wraps awkwardly once a month carries four segments). */
+.mdiv {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 16px 0 0;
+  padding-bottom: 6px;
+  border-bottom: 0.5px solid #e5e2d6;
+}
+
+.mdiv .m {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.mdiv.nodata .m {
+  color: #75756a;
+}
+
+.mdiv .c {
+  font-size: 0.8125rem;
+  color: #6b6b60;
+}
+
+.mdiv .c .over {
+  font-weight: 600;
+  color: #20211d;
+}
+
+/* Entries: a faint hairline between consecutive items (not before the first or after
+   the last), so a dense month is easy to scan. */
+.p-entry,
+.p-event {
+  padding: 11px 0;
+}
+
+.p-event {
+  padding-left: 11px;
+  border-left: 2px solid #8e9a73;
+}
+
+.p-entry + .p-entry,
+.p-entry + .p-event,
+.p-event + .p-entry,
+.p-event + .p-event {
+  border-top: 0.5px solid #e8e5da;
+}
+
+.p-entry .top {
+  font-size: 1rem;
+}
+
+.p-entry .dt {
+  font-weight: 600;
+}
+
+.p-entry .sev {
+  color: #4f5640;
+  font-weight: 600;
+}
+
+.p-entry .det {
+  font-size: 0.875rem;
+  color: #54544a;
+  margin-top: 2px;
+}
+
+.p-entry .lbl {
+  color: #727264;
+}
+
+/* Treatments render one attempt per line under the label, matching the feed's stacked list. */
+.p-entry .treat-lines {
+  margin-left: 10px;
+}
+
+.p-entry .note {
+  font-size: 0.875rem;
+  color: #54544a;
+  font-style: italic;
+  margin-top: 2px;
+}
+
+.p-event .top {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #4f5640;
+}
+
+.p-event .det {
+  font-size: 0.875rem;
+  color: #54544a;
+  margin-top: 2px;
+}
+
+.p-nodata {
+  font-size: 0.9375rem;
+  color: #75756a;
+  font-style: italic;
+  margin: 8px 0 0;
+}
+
+.p-foot {
+  margin-top: 22px;
+  padding-top: 11px;
+  border-top: 1px solid #d8d5c8;
+  font-size: 0.8125rem;
+  color: #727264;
+  display: flex;
+  justify-content: space-between;
+}
+
+.report-err {
+  color: var(--text);
+  font-size: 1rem;
+}
+
+/* Phone: reclaim horizontal room so the preview reflows comfortably. */
+@media (max-width: 460px) {
+  .paper {
+    padding: 24px 18px;
+  }
+}

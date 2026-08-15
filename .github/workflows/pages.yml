@@ -1,0 +1,45 @@
+name: Deploy product page to GitHub Pages
+
+# Publishes the static product page in site/ to GitHub Pages. site/ is neither the repo root nor
+# docs/, so the simple "deploy from a branch" toggle cannot reach it; this workflow does. Runs only
+# when the page changes (or on a manual trigger). Requires repo Settings -> Pages -> Source: GitHub
+# Actions, and only works once the repo is public (GitHub Pages does not serve private repos on the
+# free plan). The custom domain (dusknote.app) is set in Settings -> Pages.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+# Read-only by default across the repo; this workflow needs the Pages-deploy scopes to publish.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two deploys at once; let a newer one supersede an in-flight one.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Upload the site/ folder
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - name: Deploy to Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

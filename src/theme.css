@@ -1,0 +1,1602 @@
+/* Dusknote — design tokens and components.
+   Dusk ground, dim olive accent. Calm is a feature: no motion, no glare, no red. */
+
+:root {
+  --bg: #12151d;
+  --card: #1a1f2b;
+  --text: #c6ccd8;
+  --muted: #808a9c;
+  --accent: #8e9a73;
+  --on-accent: #151810;
+  --accent-tint: rgba(142, 154, 115, 0.18);
+  --border-faint: rgba(128, 138, 156, 0.27);
+  /* Hierarchy: one caution tone (over-limit) and a dimmer grey for helper captions. */
+  --warn: #ca9a63;
+  --muted-dim: #6d7688;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Atkinson Hyperlegible', system-ui, sans-serif;
+  font-size: 1.125rem;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+#root {
+  /* iOS home-screen apps can resolve 100dvh shorter than the physical screen, floating the
+     whole app (and the tab bar) up and leaving dark space below. lvh fills to the true bottom;
+     the tab bar's safe-area padding keeps the labels above the home indicator. */
+  height: 100vh;
+  height: 100lvh;
+}
+
+.app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* clip the brief horizontal offset of the tab slide-in */
+}
+
+/* Tab transition (swipe / tab-bar): the incoming screen slides + fades in from the direction of
+   travel. Subtle by design, and fully disabled under reduced-motion (this app gets used by someone
+   in the middle of an episode). */
+.screen-slide {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  animation: mm-slide-fwd 220ms ease-out;
+}
+.screen-slide.back {
+  animation-name: mm-slide-back;
+}
+@keyframes mm-slide-fwd {
+  from {
+    opacity: 0;
+    transform: translateX(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes mm-slide-back {
+  from {
+    opacity: 0;
+    transform: translateX(-22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .screen-slide {
+    animation: none;
+  }
+}
+
+.screen {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* ALL of the top gap (notch safe-area + breathing room) lives here, above the scroll area,
+     and .screen is opaque. So .scroll has no top padding, the sticky month header pins flush
+     to the very top of the scroll, and the solid strip above it means scrolled entries can
+     never peek through (the see-through gap under the notch). */
+  padding-top: calc(env(safe-area-inset-top, 0px) + 18px);
+  background: var(--bg);
+}
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 20px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.footer {
+  padding: 10px 20px 4px;
+}
+
+button,
+input,
+textarea {
+  font-family: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Headings receive focus programmatically on navigation (see ScreenFocus) so screen readers
+   announce the new screen. The user didn't tab there, so no ring: :focus-visible already handles
+   real keyboard focus, and this only suppresses the scripted case. */
+h1[tabindex='-1']:focus,
+h2[tabindex='-1']:focus {
+  outline: none;
+}
+
+/* The only motion in the app: sub-200ms color transitions on states the user caused. */
+@media (prefers-reduced-motion: no-preference) {
+  .chip,
+  .tab,
+  .btn-primary,
+  .btn-secondary,
+  .sev-circle {
+    transition: background-color 150ms ease-out, color 150ms ease-out,
+      border-color 150ms ease-out;
+  }
+}
+
+.screen-title {
+  font-size: 1.625rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.section-label {
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.small {
+  font-size: 0.9375rem;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+/* Available to a screen reader, invisible on screen. For information the design carries as a
+   shape or a colour, which can't be read aloud: the feed's relief glyph is the case that forced
+   it. Clip rather than display:none, which would remove it from the accessible tree too. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 16px;
+  border: 0;
+  color: var(--text);
+  text-align: left;
+  font-size: 1.125rem;
+}
+
+/* Card / group title = section-header weight (Settings cards are the content, so they
+   take the same weight as the month headers in the feed and Stats). */
+.card-title {
+  font-size: 1.1875rem;
+  font-weight: 700;
+}
+
+.btn-primary {
+  min-height: 56px;
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 1.1875rem;
+  font-weight: 700;
+}
+
+.btn-secondary {
+  min-height: 56px;
+  width: 100%;
+  border: 1px solid var(--border-faint);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 1.1875rem;
+  font-weight: 700;
+}
+
+.text-btn {
+  background: none;
+  border: 0;
+  color: var(--accent);
+  font-size: 1.125rem;
+  font-weight: 700;
+  padding: 10px 12px;
+}
+
+/* An <a> styled as a full-width secondary button (e.g. Backup's "Open sheet"). */
+.link-block {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+/* Backup card's demoted actions: a quiet, centered stack under the one context button. */
+.backup-quiet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.btn-signout {
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  padding: 8px;
+  width: 100%;
+  text-align: center;
+}
+
+.back-btn {
+  align-self: flex-start;
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font-size: 1rem;
+  padding: 4px 0;
+}
+
+/* Chips: pill, selection never reflows the row (bold width reserved by a hidden ghost). */
+.chip {
+  min-height: 42px;
+  display: inline-grid;
+  align-items: center;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--card);
+  border: 1px solid var(--border-faint);
+  color: var(--text);
+  font-size: 1.0625rem;
+}
+
+.chip > span {
+  grid-area: 1 / 1;
+  text-align: center;
+}
+
+.chip-ghost {
+  font-weight: 700;
+  visibility: hidden;
+}
+
+.chip-sel {
+  background: var(--accent-tint);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.chip-sel .chip-face {
+  font-weight: 700;
+}
+
+/* A muted "archived" text tag on a pill that's an archived value still on the entry. Plain text,
+   not an icon (an icon would read as "tap to archive"); a quiet one-way-removal heads-up. */
+.chip-archived {
+  color: var(--muted-dim);
+  font-weight: 400;
+  font-size: 0.8125rem;
+}
+
+/* Small chips (helped? yes / partly / no): color change only, no weight change. */
+.chip-small {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 0.9375rem;
+  background: transparent;
+  color: var(--muted);
+}
+
+.chip-small .chip-ghost {
+  display: none;
+}
+
+.chip-small.chip-sel {
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+
+.chip-small.chip-sel .chip-face {
+  font-weight: 400;
+}
+
+.chip-add {
+  background: var(--card);
+  border-style: dashed;
+  color: var(--muted);
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip-input {
+  min-height: 42px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: var(--card);
+  color: var(--text);
+  padding: 0 14px;
+  font-size: 1.0625rem;
+  width: 11em;
+}
+
+/* The log form breathes a little more than list screens. */
+.form-scroll {
+  gap: 24px;
+}
+
+.row-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+/* Rating: six 48px circles (0–5) in one row; the word for the previewed or
+   selected number sits right-aligned on the label line, so nothing shifts. */
+.sev-row {
+  display: flex;
+  justify-content: space-between;
+}
+
+.sev-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1875rem;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid rgba(128, 138, 156, 0.2);
+  padding: 0;
+}
+
+.sev-circle.previewed {
+  background: var(--accent-tint);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.sev-circle.selected {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+  font-weight: 700;
+}
+
+.sev-caption {
+  font-size: 1rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.dateline {
+  background: none;
+  border: 0;
+  color: var(--text);
+  font-size: 1.375rem;
+  font-weight: 700;
+  text-align: left;
+  padding: 2px 0;
+}
+
+/* "Did it help?" — the question on its own line, the glyph+word options wrapping below,
+   so three options never crowd on a narrow phone. Each option is its own key: glyph + word. */
+.helped-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.helped-label {
+  font-size: 1rem;
+  color: var(--muted);
+}
+
+.helped-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.outcome {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--card);
+  border: 1px solid var(--border-faint);
+  color: var(--muted);
+  font-size: 1rem;
+}
+
+.outcome.sel {
+  background: var(--accent-tint);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* One size on focus (no jump); the lower-right handle grows it if needed. */
+.notes {
+  background: var(--card);
+  border: 0;
+  border-radius: 16px;
+  padding: 14px 16px;
+  color: var(--text);
+  font-size: 1.0625rem;
+  line-height: 1.45;
+  resize: vertical;
+  height: 96px;
+  min-height: 56px;
+  width: 100%;
+}
+
+.notes::placeholder {
+  color: var(--muted);
+}
+
+/* Collapsible section row (Symptoms, Any other factors?). */
+.reveal-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  color: var(--muted);
+  font-size: 1.0625rem;
+  padding: 14px 16px;
+}
+
+.reveal-hint {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Date and start time sit side by side while editing. */
+/* Feed's events show/hide: a quiet muted link, not a bold accent action. */
+.feed-toggle {
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  padding: 4px 2px;
+}
+
+.dt-row {
+  display: flex;
+  gap: 8px;
+}
+
+.dt-row .field {
+  flex: 1;
+  min-width: 0;
+}
+
+input[type='date'],
+input[type='time'],
+input[type='text'],
+input[type='number'] {
+  background: var(--card);
+  border: 1px solid var(--border-faint);
+  border-radius: 12px;
+  color: var(--text);
+  font-size: 1.125rem;
+  padding: 10px 14px;
+  min-height: 48px;
+  width: 100%;
+}
+
+/* iOS/WebKit gives native date & time inputs an intrinsic width and ignores width:100%,
+   so they overflow their card. Resetting appearance makes them honor the box; the native
+   picker still opens on tap. */
+input[type='date'],
+input[type='time'] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Drop the number spinner arrows (you type the value); they waste width and clip placeholders. */
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field-label {
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+/* Tab bar: text labels, active = accent + 700. */
+.tabbar {
+  display: flex;
+  padding: 6px 0 calc(env(safe-area-inset-bottom, 0px) + 12px);
+}
+
+.tab {
+  flex: 1;
+  text-align: center;
+  font-size: 0.9375rem;
+  color: var(--muted);
+  background: none;
+  border: 0;
+  padding: 10px 0;
+}
+
+.tab-active {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* History cards: date owns the row, the rating numeral column is the scan target. */
+.entry-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 16px;
+  text-align: left;
+}
+
+.entry-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.entry-date {
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+
+/* Rating as a circle echoing the form's selected rating pick, so a "4" reads the same
+   whether tapped or scanned. No rating = a muted outline circle (like an unselected pick). */
+.entry-sev {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.entry-sev.none {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border-faint);
+  font-weight: 400;
+}
+
+.entry-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+}
+
+.entry-field {
+  min-width: 0;
+}
+
+/* Field label (Symptoms / Treatments / Other factors / Notes), kept dimmer than the data. */
+.f-lbl {
+  color: var(--muted-dim);
+  font-size: 0.875rem;
+}
+
+.f-val {
+  color: var(--text);
+  font-size: 0.9375rem;
+  margin-top: 1px;
+}
+
+/* Treatments as a small table: one shared grid so time, name, and glyph line up in columns
+   across every row. Rows are display:contents so their cells join the parent grid; the name
+   column sizes to the longest name (left-packed, not stretched), so the glyph column sits
+   right beside the names rather than at the card's edge. */
+.treat-rows {
+  display: grid;
+  grid-template-columns: max-content minmax(0, max-content) max-content;
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 3px;
+  margin-top: 2px;
+}
+
+.treat-row {
+  display: contents;
+}
+
+.treat-time {
+  color: var(--muted-dim);
+  font-size: 0.9375rem;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.treat-name {
+  min-width: 0;
+  font-size: 0.9375rem;
+  color: var(--text);
+}
+
+.entry-notes {
+  margin-top: 1px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-style: italic;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Relief glyphs, shared by the feed treatment rows and the log form's outcome selector:
+   olive full = helped, olive half = partly, hollow ring = didn't help. No red anywhere. */
+.g {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+.g-yes {
+  background: var(--accent);
+}
+.g-part {
+  border: 1.5px solid var(--accent);
+  background: linear-gradient(90deg, var(--accent) 0 50%, transparent 50% 100%);
+}
+.g-no {
+  border: 1.5px solid var(--muted);
+  background: transparent;
+}
+
+/* Backup status: a dot whose lightness signals state (accent = done, muted = pending),
+   with the manual action tucked to the right. No red, no motion. */
+.sync-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sync-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--accent);
+}
+
+.sync-dot[data-state='pending'] {
+  background: var(--muted);
+}
+
+.sync-dot[data-state='busy'] {
+  background: var(--accent);
+  opacity: 0.55;
+}
+
+/* Events in the feed: quiet, tappable markers (not cards). Accent dot = "not an episode". */
+.event-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  width: 100%;
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.event-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+.confirm-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.125rem;
+  min-height: 56px;
+}
+
+.confirm-row > span {
+  flex: 1;
+}
+
+/* ─── Information-hierarchy scale ────────────────────────────────────
+   One shared type + action ladder across the feed, Stats, Settings, and the
+   report builder. */
+
+/* Section header: months in the feed and Stats. Pulled above the cards with air
+   above, so the group header outranks its own entries. Rendered as an <h2> so screen-reader
+   users can skim by month the way sighted users scan the dividers. */
+.section-head {
+  font-size: 1.1875rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 6px;
+}
+
+/* Sticky variant: pins the current month while scrolling that month's items, so a
+   bare "Thursday 3" never loses its month. Background covers cards sliding under. */
+.section-head-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg);
+  padding: 6px 0;
+  margin: 0;
+}
+
+/* Data value = the scan target (Stats numbers). Over-limit turns the one caution tone. */
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+  min-width: 1.4em;
+}
+.stat-value.over {
+  color: var(--warn);
+}
+.metric {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.metric-label {
+  font-size: 1rem;
+  color: var(--muted);
+}
+
+/* A tappable Stats metric row (#8, tap to filter). Button reset over .metric's flex layout; the
+   arrow follows the words rather than pinning to the right edge. */
+.metric-tap {
+  background: none;
+  border: 0;
+  padding: 0;
+  width: 100%;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+.tap-arrow {
+  color: var(--muted);
+  font-size: 1.0625rem;
+  line-height: 1;
+}
+
+/* Watched-factor split: an indented list under the episode-days headline, aligned to the label
+   (the value column is 1.4em wide + the 8px .metric gap). Not bolded, reads as secondary. */
+.stat-sublist {
+  padding-left: 42px;
+  margin-top: 4px;
+  font-size: 0.875rem;
+  color: var(--muted-dim);
+  line-height: 1.5;
+}
+
+/* The maker's mark at the foot of Settings: logo + wordmark, linking to the project's front door.
+   Reads as a quiet credit, not an action, so it keeps the caption tone and takes no accent colour
+   or underline until touched. */
+.footer-mark {
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--muted);
+  text-decoration: none;
+}
+.footer-mark:active {
+  color: var(--text);
+}
+
+/* What helped: all-time treatment outcomes. Stacked rows rather than a name-and-value line,
+   because "helped 21 · partly 2 · no 1" plus a name never fits one phone line. Hairline rules
+   separate rows without boxing them in; the last row drops its rule so the card ends clean. */
+.tx-row {
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(128, 138, 156, 0.15);
+}
+.tx-row:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.tx-name {
+  font-size: 0.9375rem;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+.tx-counts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 0.9375rem;
+}
+.tx-ct {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+/* A zero recedes but stays legible: "helped 0 · partly 0 · no 3" is a real finding, not an
+   absence, so it never gets hidden — only de-emphasized so the eye lands on the 3. */
+.tx-ct-zero {
+  color: var(--muted-dim);
+}
+.tx-sep {
+  color: var(--muted-dim);
+}
+/* Missing outcomes ride the app's helper-text tone (dimmer + smaller than entered data), so the
+   caveat never competes with the counts it qualifies. */
+.tx-no-outcome,
+.tx-none {
+  font-size: 0.8125rem;
+  color: var(--muted-dim);
+  line-height: 1.5;
+  margin-top: 2px;
+}
+
+/* Rating breakdown: horizontal olive bands echoing the app icon's dusk bands (5 → 1, fading). */
+.rating-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rating-lbl {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.rating-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 30px;
+  /* reset for the button variant (tappable rows); harmless on the div variant (zero rows) */
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  width: calc(100% + 8px);
+  text-align: left;
+  padding: 4px;
+  margin: 0 -4px; /* let the pressed background breathe past the text without shifting layout */
+  border-radius: 8px;
+}
+.rating-tap:active {
+  background: rgba(142, 154, 115, 0.13);
+}
+/* Shade swatch: the same olive the calendar uses for that rating, so the list is the key. */
+.rating-sw {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+.rating-sw-empty {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px rgba(128, 138, 156, 0.28);
+}
+.rating-word {
+  font-size: 0.9375rem;
+  color: var(--text);
+}
+/* Dotted leader bridges the word to its count so the eye tracks across the row (menu-style). */
+.rating-leader {
+  flex: 1;
+  border-bottom: 1.5px dotted rgba(128, 138, 156, 0.4);
+  margin: 0 6px;
+  position: relative;
+  top: 6px;
+}
+.rating-ct {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.rating-zero {
+  color: var(--muted-dim);
+  font-weight: 400;
+}
+
+/* Stats calendar — the month as a portrait */
+.cal-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.cal-dowh {
+  font-size: 0.625rem;
+  color: var(--muted-dim);
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+.cal-cell {
+  height: 22px;
+  border-radius: 4px;
+  background: rgba(128, 138, 156, 0.09); /* no-episode day */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cal-blank {
+  background: transparent; /* leading pad before day 1 */
+}
+/* Episode days are buttons (tap to open the Log filtered to that day); every other cell stays a
+   span. Button reset only, so a tapped day looks identical to the span version it replaced. */
+.cal-tap {
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  width: 100%;
+}
+.cal-tap:active {
+  filter: brightness(1.25);
+}
+/* .cal-hit background is set inline per day (olive at the rating's opacity) */
+.cal-unrated {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px rgba(142, 154, 115, 0.55); /* episode, no rating recorded */
+}
+.cal-gap {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(128, 138, 156, 0.22) 0 2px,
+    transparent 2px 5px
+  );
+}
+/* The cell gets BRIGHTER as the rating worsens (opacity .32 → 1.0 of the olive over a near-black
+   card), so one light number colour cannot work across the ramp: at rating 5 a near-white sat at
+   1.72:1 and vanished exactly where the shading was strongest. Opaque light on the dark end,
+   flipping to the palette's on-accent ink once the cell is bright enough to need it. */
+.cal-dn {
+  font-size: 0.625rem;
+  line-height: 1;
+  color: #e9ecf1;
+  font-variant-numeric: tabular-nums;
+}
+/* Bolder, not just darker. At identical weights, light-on-dark reads thicker than dark-on-light
+   (the bright ground bleeds into the glyph), so the ink numbers looked thinner than their light
+   siblings even though both are 400. Bumping these to 700 makes the two halves of the ramp read
+   as one set. */
+.cal-ink .cal-dn {
+  color: var(--on-accent);
+  font-weight: 700;
+}
+
+/* Calendar key — one block at the top of the Stats tab */
+.cal-key {
+  gap: 9px;
+}
+.cal-ramp {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.cal-ramp-sw {
+  width: 17px;
+  height: 12px;
+  border-radius: 2px;
+}
+.cal-ramp-cap {
+  font-size: 0.6875rem;
+  color: var(--muted-dim);
+}
+.cal-key-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.7188rem;
+  color: var(--muted-dim);
+  align-items: center;
+}
+.cal-key-types > span {
+  display: inline-flex;
+  align-items: center;
+}
+.cal-key-sq {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  display: inline-block;
+  margin-right: 5px;
+  flex-shrink: 0;
+}
+.cal-key-outline {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px rgba(142, 154, 115, 0.55);
+}
+.cal-key-hatch {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(128, 138, 156, 0.22) 0 2px,
+    transparent 2px 5px
+  );
+}
+.cal-key-none {
+  background: rgba(128, 138, 156, 0.09);
+}
+
+/* The feed's Stats-driven filter chip (#8): names the active filter, with a clear ✕ alongside. */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+}
+.filter-chip {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  background: var(--accent-tint);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+/* Helper / instructional text: smaller and dimmer than data, so app guidance
+   reads behind the user's own content. */
+.caption {
+  font-size: 0.8125rem;
+  color: var(--muted-dim);
+}
+
+/* A bulleted caption: helper lines with a bold lead-in each, so a longer explanation scans instead
+   of reading as a block. Same tone as .caption; the lead sits a shade brighter (--muted) as a scan
+   anchor without adding glare. The Backup card is the first use. */
+.cap-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.cap-item {
+  display: flex;
+  gap: 8px;
+  font-size: 0.8125rem;
+  color: var(--muted-dim);
+  line-height: 1.5;
+}
+.cap-bullet {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.cap-lead {
+  font-weight: 700;
+  color: var(--muted);
+}
+
+/* Action hierarchy: destructive actions recede to muted (never accent) + confirm. */
+.btn-quiet {
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font-size: 1.0625rem;
+  font-weight: 400;
+  padding: 4px 0;
+  text-align: left;
+}
+
+/* Icon button (the x-circle remove): 44px tap target, muted. */
+.icon-btn {
+  background: none;
+  border: 0;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+/* Inline accent link that carries an external-link glyph (Open the sheet). */
+.link-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Hairline separating a status line from account actions within a card. */
+.hair-rule {
+  border: 0;
+  border-top: 1px solid var(--border-faint);
+  margin: 4px 0;
+  width: 100%;
+}
+
+/* Two account actions sharing one line. */
+.cta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Backup card actions: full-width buttons stacked one per row (Open sheet / Open backups), equal
+   height. The grid rows share the taller one, so Open sheet stretches to match the stacked Open
+   backups instead of sitting shorter. A lone child simply fills its row. */
+.btn-stack {
+  display: grid;
+  grid-auto-rows: 1fr;
+  gap: 10px;
+}
+
+/* The stacked secondary button (Open backups): label centered, the last-backup month just below it.
+   The month IS the backup status (a stale month is the chronic-failure signal). */
+.btn-stacked {
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 12px 0 9px;
+  line-height: 1.2;
+  min-height: 56px;
+}
+.btn-stacked .btn-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.btn-stacked .btn-sub {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--muted-dim);
+}
+
+/* Sheet chooser (Backup card, 'choose' phase): a bold prompt over a list of app-created sheets, each
+   a full-width, left-aligned tappable showing its entry count and dates so two same-named sheets are
+   tellable apart. */
+.prompt {
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+.sheet-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  width: 100%;
+  text-align: left;
+  background: var(--card);
+  border: 1px solid var(--border-faint);
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: var(--text);
+}
+.sheet-pick:active {
+  background: var(--accent-tint);
+  border-color: var(--accent);
+}
+.sheet-name {
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+.sheet-count {
+  font-size: 0.8125rem;
+  color: var(--muted-dim);
+}
+.sheet-dates {
+  font-size: 0.75rem;
+  color: var(--muted-dim);
+}
+
+/* Coverage-gap rows: a tappable summary (opens the editor) with the x-circle delete beside it. */
+.gap-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border-faint);
+  border-radius: 12px;
+  padding: 12px;
+}
+.gap-edit {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  color: var(--text);
+}
+.gap-date {
+  font-size: 1.0625rem;
+}
+.gap-hint {
+  font-size: 0.75rem;
+  color: var(--muted-dim);
+}
+
+/* Reason textarea in the gap editor. */
+.ta {
+  background: var(--card);
+  border: 1px solid var(--border-faint);
+  border-radius: 12px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 1.0625rem;
+  line-height: 1.4;
+  padding: 10px 12px;
+  min-height: 60px;
+  resize: vertical;
+  width: 100%;
+}
+.ta::placeholder {
+  color: var(--muted);
+}
+
+/* Validation: an empty required date gets a warm outline; the message uses the amber caution tone. */
+input.inp-error {
+  border-color: var(--warn);
+}
+.form-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--warn);
+  font-size: 0.9375rem;
+}
+.form-error-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--warn);
+  flex-shrink: 0;
+}
+
+/* Save / Cancel row for the gap editor. */
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 18px;
+}
+.btn-accent {
+  background: var(--accent);
+  color: var(--on-accent);
+  border: 0;
+  border-radius: 11px;
+  font-weight: 700;
+  font-size: 1.0625rem;
+  padding: 11px 22px;
+}
+
+/* Genuinely-inactive buttons (e.g. Export PDF while it says "Preparing…") read as disabled.
+   Required-field forms do NOT disable Save; they stay pressable and surface an error instead. */
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* A treatment attempt: the chip name and its editable time on top, the "helped?" row below.
+   The time defaults to when the chip was tapped and can be nudged to when it was really taken. */
+/* Each treatment attempt is its own contained card — name + time on top, "Did it help?" and
+   the outcome options below — so two attempts read as two distinct blocks, not one run-together
+   list. The padding and gap give the outcome question room to breathe. */
+.attempt {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--border-faint);
+  border-radius: 12px;
+  padding: 13px 14px;
+}
+.attempt-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+/* The right side of an attempt card's top row: the time input and the x-circle remove. */
+.attempt-top-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.attempt-name {
+  font-size: 1.0625rem;
+  color: var(--text);
+}
+input.attempt-time {
+  /* Wide enough for "12:07 PM" plus Chrome's clock glyph. iOS renders the value compactly
+     and never clipped; desktop and Android Chrome draw text + icon and overflowed at 132px. */
+  width: 160px;
+  min-height: 44px;
+}
+
+/* "Log another dose": a quiet text row on the most recent dose card of each treatment. Muted
+   and wordy on purpose, and far from the ×, so a redose tap can't land on remove. */
+.another-dose {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  min-height: 40px;
+  padding: 0;
+  margin: -4px 0 -6px;
+  align-self: flex-start;
+}
+.another-dose-plus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--muted);
+  border-radius: 50%;
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* Shown when a chip tap can't remove (two or more doses of that treatment logged): the
+   helper-caption voice, and it fades on its own. */
+.chip-hint {
+  font-size: 0.8125rem;
+  color: var(--muted-dim);
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* ─── Feed top area + Log search ─────────────────────────────────────────────
+   The feed header is one flex block (logo + search glass on a line, a hairline,
+   then the event controls) so its internal spacing is tighter than .scroll's gap. */
+.feed-head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.feed-head .hair-rule {
+  margin: 0;
+}
+.feed-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.feed-events {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Search: a bordered field with a leading glass and a trailing clear button. The input is
+   borderless inside it; 17px keeps it above the iOS 16px auto-zoom floor. This rule follows the
+   generic input[type='text'] block above so it wins the borderless overrides on source order. */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--card);
+  border: 1px solid var(--border-faint);
+  border-radius: 12px;
+  padding: 0 4px 0 12px;
+  min-height: 48px;
+  color: var(--muted);
+}
+.search-ic {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.search-bar input {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  min-height: 44px;
+  color: var(--text);
+  font-size: 1.0625rem;
+}
+.search-bar input::placeholder {
+  color: var(--muted);
+}
+/* Focus lands on the whole bar (its border turns accent), not the inner borderless input,
+   whose default focus ring would draw an offset rectangle inside the rounded bar. */
+.search-bar:focus-within {
+  border-color: var(--accent);
+}
+.search-bar input:focus,
+.search-bar input:focus-visible {
+  outline: none;
+}
+.search-count {
+  font-size: 0.8125rem;
+  color: var(--muted-dim);
+  padding: 0 2px;
+}
+
+/* Update banner: the quiet "new version available" line. Helper-caption voice (app guidance,
+   not user data), never accent — an update is information, not an alarm. */
+.update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 10px 14px 0;
+  padding: 8px 12px;
+  background: var(--card);
+  border-radius: 10px;
+  font-size: 0.8125rem;
+  color: var(--muted-dim);
+}
+.update-banner a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.update-banner-x {
+  background: none;
+  border: 0;
+  color: var(--muted-dim);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 2px 6px;
+}
+
+/* The Log-screen backup banner (finding b): same card shell as .update-banner, but state is
+   carried by the app's status dot (amber = attention, olive = done; see .sync-dot), never a
+   stripe. Disconnected: amber dot + amber lead-in, the app's caution convention. Reconnected:
+   olive dot, the app's "backed up" signal. Aligned to the top so the two-line message keeps the
+   dot and the action pinned to the first line. */
+.backup-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 14px 0;
+  padding: 10px 12px;
+  background: var(--card);
+  border-radius: 10px;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+.backup-banner .dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  align-self: flex-start;
+  margin-top: 5px;
+}
+.backup-banner .dot.warn {
+  background: var(--warn);
+}
+.backup-banner .dot.done {
+  background: var(--accent);
+}
+.backup-banner .txt {
+  flex: 1;
+  color: var(--muted-dim);
+}
+.backup-banner .txt b {
+  color: var(--warn);
+  font-weight: 700;
+}
+.backup-banner .reconnect {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  background: var(--accent-tint);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.8125rem;
+  border: 0;
+  border-radius: 8px;
+  padding: 7px 13px;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.backup-banner.success .txt {
+  color: var(--text);
+}
+.backup-banner.success .txt b {
+  color: var(--text);
+}

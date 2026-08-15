@@ -1,0 +1,203 @@
+/* Log options (taxonomy) manager (.mgr-*). */
+
+.mgr-hint {
+  font-size: 0.8125rem;
+  color: var(--muted-dim);
+  line-height: 1.5;
+  margin: 0 0 18px;
+}
+.mgr-sec {
+  margin-bottom: 20px;
+}
+.mgr-grp {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 3px 2px;
+}
+.mgr-expl {
+  font-size: 0.75rem;
+  color: var(--muted-dim);
+  line-height: 1.5;
+  margin: 0 0 8px 2px;
+}
+.mgr-card {
+  background: var(--card);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.mgr-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+}
+.mgr-row + .mgr-row {
+  border-top: 1px solid rgba(128, 138, 156, 0.16);
+}
+.mgr-rowmain {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+}
+.mgr-lbl {
+  color: var(--text);
+  font-size: 0.95rem;
+}
+.mgr-sub {
+  color: var(--muted-dim);
+  font-size: 0.78rem;
+  margin-top: 2px;
+}
+.mgr-ic {
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: -8px -8px -8px 0;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.mgr-restore {
+  color: var(--accent);
+  font-size: 0.875rem;
+  white-space: nowrap;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 4px;
+}
+.mgr-arch {
+  opacity: 0.72;
+}
+
+/* Rating rows: number badge + label + lock/pencil. */
+.mgr-srow {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 14px;
+}
+.mgr-srow + .mgr-srow {
+  border-top: 1px solid rgba(128, 138, 156, 0.16);
+}
+.mgr-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid rgba(128, 138, 156, 0.45);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text);
+  flex-shrink: 0;
+}
+.mgr-add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.875rem;
+  padding: 11px 14px;
+  border: 1px dashed rgba(128, 138, 156, 0.35);
+  border-radius: 12px;
+  margin-top: 8px;
+  background: none;
+  width: 100%;
+  cursor: pointer;
+}
+.mgr-drawer {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  padding: 10px 14px 4px 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mgr-drawer svg {
+    transition: transform 0.15s ease;
+  }
+}
+.mgr-drawer.open svg {
+  transform: rotate(180deg);
+}
+
+/* Confirm + editor modals */
+.mgr-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 50;
+}
+.mgr-modal {
+  background: var(--card);
+  border: 1px solid var(--border-faint);
+  border-radius: 14px;
+  padding: 18px 18px 16px;
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.confirm-q {
+  font-size: 1rem;
+  color: var(--text);
+  font-weight: 700;
+}
+.confirm-b {
+  font-size: 0.875rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.mgr-input {
+  width: 100%;
+  /* >=16px so iOS doesn't auto-zoom the page when the field is focused (matches the app's other
+     inputs; the type="text" attr also pulls in the shared input styling). */
+  font-size: 1.125rem;
+}
+.mgr-limit-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+.mgr-error {
+  color: var(--warn);
+  font-size: 0.85rem;
+}
+.mgr-warn {
+  color: var(--warn);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+.mgr-modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 2px;
+}
+.mgr-modal-actions button {
+  flex: 1;
+}

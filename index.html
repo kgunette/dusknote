@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#12151d" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="%APP_NAME%" />
+
+    <!-- The security policy, carried inside the page so it travels to ANY host.
+         vercel.json sends the same policy as a real header, which is stronger, but headers are
+         host-specific: fork this and deploy to Netlify, Cloudflare Pages, or S3 and you would
+         silently get no policy at all, while the app appeared to work perfectly. That matters
+         because the Google access token lives in localStorage and script-src is what stops
+         injected code reading it.
+         frame-ancestors is deliberately absent: it is ignored in a meta tag and must be a real
+         header. X-Frame-Options in vercel.json covers it there; a non-Vercel host has to set it
+         themselves, which the setup guide says. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; base-uri 'self'; object-src 'none'; img-src 'self' data:; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https://sheets.googleapis.com https://www.googleapis.com https://api.github.com; form-action 'self'"
+    />
+
+    <!-- Every deployment of this app is one person's private health record. Search engines have
+         no business indexing it: a URL named after its owner would put the existence of someone's
+         tracker into search results. Three layers, because each has a gap: robots.txt is honoured
+         voluntarily, this meta tag requires the crawler to actually read the page, and
+         X-Robots-Tag in vercel.json arrives with the response before the page does. -->
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/png" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <title>%APP_NAME%</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

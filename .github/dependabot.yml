@@ -1,0 +1,12 @@
+# Security fixes only. Routine version bumps are deliberately off:
+# a one-time full dependency refresh happens once before the first public
+# release, so the app launches current without weekly churn.
+# open-pull-requests-limit: 0 disables version-update PRs; GitHub's
+# security-update PRs are unaffected and stay on.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
