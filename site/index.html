@@ -61,6 +61,13 @@
   }
   .btn-primary { background: var(--accent); color: var(--on-accent); }
   .btn-secondary { border: 1px solid var(--border-faint); color: var(--text); }
+  .hero-grid { display: grid; grid-template-columns: 1fr 272px; gap: 48px; align-items: center; }
+  .hero-shot img { width: 272px; max-width: 100%; height: auto; border-radius: 22px; border: 1px solid var(--border-faint); display: block; }
+  @media (max-width: 760px) {
+    .hero-grid { grid-template-columns: 1fr; }
+    .hero-shot { margin-top: 36px; }
+    .hero-shot img { width: 240px; }
+  }
 
   /* Sections */
   section { padding: 40px 0; }
@@ -135,12 +142,17 @@
       </svg>
       <span class="name">Dusknote</span>
     </div>
-    <div class="col">
-      <h1>Your health notes, on your phone, yours forever.</h1>
-      <p class="lede">Dusknote is a free forever (no upsells), open-source tracker for any chronic health condition. Entries live on your device, back up to a Google Sheet in your own Drive, and export as a report you can share with anyone you choose.</p>
-      <div class="cta-row">
-        <a class="btn btn-primary" href="#setup">Set it up</a>
-        <a class="btn btn-secondary" href="https://github.com/kgunette/dusknote">View on GitHub</a>
+    <div class="hero-grid">
+      <div class="col">
+        <h1>Your health notes, on your phone, yours forever.</h1>
+        <p class="lede">Dusknote is a free forever (no upsells), open-source tracker for any chronic health condition. Entries live on your device, back up to a Google Sheet in your own Drive, and export as a report you can share with anyone you choose.</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="#setup">Set it up</a>
+          <a class="btn btn-secondary" href="https://github.com/kgunette/dusknote">View on GitHub</a>
+        </div>
+      </div>
+      <div class="hero-shot">
+        <img src="img/stats.png" alt="The Dusknote Stats screen: months shown as calendars shaded by severity, with episode-day counts and the patterns you choose to watch" width="780" height="1688">
       </div>
     </div>
   </header>
