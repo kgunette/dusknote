@@ -64,6 +64,12 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden; /* clip the brief horizontal offset of the tab slide-in */
+  /* Notch clearance belongs to the shell, not to .screen, because the banners (update, backup)
+     render ABOVE .screen. When one was showing it sat under the status bar with the clock printed
+     over it, and .screen's clearance then opened a large gap beneath it. Here it protects whatever
+     is topmost. Opaque, so scrolled content can never show through the strip under the notch. */
+  padding-top: env(safe-area-inset-top, 0px);
+  background: var(--bg);
 }
 
 /* Tab transition (swipe / tab-bar): the incoming screen slides + fades in from the direction of
@@ -110,11 +116,10 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  /* ALL of the top gap (notch safe-area + breathing room) lives here, above the scroll area,
-     and .screen is opaque. So .scroll has no top padding, the sticky month header pins flush
-     to the very top of the scroll, and the solid strip above it means scrolled entries can
-     never peek through (the see-through gap under the notch). */
-  padding-top: calc(env(safe-area-inset-top, 0px) + 18px);
+  /* Breathing room only; the notch clearance is on .app above. .screen stays opaque and .scroll
+     still has no top padding, so the sticky month header pins flush to the top of the scroll and
+     scrolled entries can never peek through. */
+  padding-top: 18px;
   background: var(--bg);
 }
 
