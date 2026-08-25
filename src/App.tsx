@@ -33,12 +33,21 @@ const ReportScreen = lazy(() =>
 export default function App() {
   // A sign-in redirect reboots the app on the default tab. If it was launched from Settings,
   // a marker (set just before the redirect) brings us back there instead of landing on Log.
-  // localStorage, not sessionStorage: the latter is cleared across the OAuth redirect in an
-  // iOS home-screen app. Cleared on the first tab change (below), not on mount, so it survives
-  // the service worker's post-deploy auto-reload — which otherwise eats it and lands on Log.
-  const [tab, setTab] = useState<Tab>(() =>
-    localStorage.getItem('dn_return_tab') === 'settings' ? 'settings' : 'log'
-  );
+  // Which tab to open on. A cold start always opens on Log: that is what the app is for, and
+  // reopening on Settings would be wrong. But when the page reloads UNDER the person, the tab
+  // they were on is restored, because from where they sit nothing happened and being moved is
+  // confusing. Two things reload the page: the service worker's post-deploy auto-update, and the
+  // sign-in redirect. The first shows up as a 'reload' navigation; the second comes back as a
+  // fresh navigation from Google, so it leaves its own marker before it goes.
+  // localStorage, not sessionStorage: the latter is cleared across the OAuth redirect in an iOS
+  // home-screen app.
+  const [tab, setTab] = useState<Tab>(() => {
+    if (localStorage.getItem('dn_return_tab') === 'settings') return 'settings';
+    const nav = performance.getEntriesByType?.('navigation')[0] as PerformanceNavigationTiming | undefined;
+    if (nav?.type !== 'reload') return 'log';
+    const saved = localStorage.getItem('dn_tab');
+    return TAB_ORDER.includes(saved as Tab) ? (saved as Tab) : 'log';
+  });
   const [entries, setEntries] = useState<Entry[] | null>(null);
   // The merged vocabulary is the single source of truth. The legacy shapes the rest of
   // the app still speaks — tap options (chips), and the counted/shown medications — are derived.
@@ -92,6 +101,7 @@ export default function App() {
     (t: Tab) => {
       setNavDir(TAB_ORDER.indexOf(t) >= TAB_ORDER.indexOf(tab) ? 'fwd' : 'back');
       localStorage.removeItem('dn_return_tab'); // consume the post-reconnect marker on first navigation
+      localStorage.setItem('dn_tab', t); // where to come back to if the page reloads under us
       closeForm();
       setShowReport(false);
       setShowLogOptions(false);
