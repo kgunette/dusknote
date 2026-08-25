@@ -34,7 +34,7 @@ You can import three kinds of files: entries, events, or gaps. You don't have to
 | Other factors             | Optional. Separated by `; `.                                                                                                                        |
 | Notes                     | Optional. Free text.                                                                                                                                |
 | Source                    | Optional. Blank, `normal`, or `backfilled`. Imported history is `backfilled`.                                                                       |
-| ID, Logged at, Updated at | Leave blank; the app fills them.                                                                                                                    |
+| ID, Logged at, Updated at | Leave blank and the app fills them. One exception: if this file came out of a Dusknote sheet, yours or an older instance of it, keep these columns as they are. The import preserves them, so your entries keep their real IDs and the times you actually recorded them. |
 
 **Events** (template: [events-template.csv](templates/events-template.csv)): `Date` (required, same format) and `Note` (required; an appointment, a scan, a medication change).
 
@@ -42,9 +42,19 @@ You can import three kinds of files: entries, events, or gaps. You don't have to
 
 Limits: a file can hold up to 20,000 rows and 2 MB. Bigger histories import fine as several files.
 
+**Whatever spreadsheet you use, check the dates before you import.** Excel, Numbers, and Google Sheets all like to rewrite a date like `2026-03-05` into a shorter local form like `3/5/26`, and Dusknote rejects the whole file when they do. Set the Date column's format to `yyyy-mm-dd` before you save the file. To verify that the dates are formatted correctly, open the saved file in TextEdit on a Mac or Notepad on Windows: those show the file exactly as it is, without applying formatting of their own.
+
 ## When a file is rejected
 
 The message lists each problem by row and column, like `Row 14, Date: expected a date like 2026-03-05, got "3/5/26".` It's written to be pasted straight back to whatever produced the file: give it to your assistant and ask for a corrected file, or find row 14 yourself in a spreadsheet app. Nothing was imported, so there's nothing to undo; fix and import again.
+
+## What you still have to set up yourself
+
+Import brings your history: your entries, events, and gaps. It doesn't bring your personalization. After importing, go to **Settings → Log options** and add the things you track: your medications and how many days a month you can take each one, your symptoms, your remedies, the other factors you want to keep an eye on, the words you want for the 1 to 5 ratings, and the word for what you're tracking (episode, headache, flare). Medication is only counted once you've given it a monthly limit, so this will impact how your Stats are reflected.
+
+When you log an entry, you pick from your own lists: your medications, your symptoms, and so on. Your imported history may mention things that aren't on those lists, like a medication you stopped taking years ago. The app adds each of them so your old entries still make sense, but files them under **Archived** instead of putting them on the lists you tap every day. Anything you still use, you can move back to your active list with one tap.
+
+Important note: changing the Google Sheet by hand won't change the information in the app. The app is where your data lives, and its next backup will overwrite whatever you typed into the sheet.
 
 ## The historical data conversion prompt
 
