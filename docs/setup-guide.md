@@ -89,9 +89,10 @@ One thing to be aware of through this step: Google's screens are written for com
 ## Step 6: Give the ID to your deployment
 
 1. Go back to your Vercel tab (or re-open your Vercel account), open your project and click **Environment Variables** in the left menu; it's a top-level item in the project sidebar. Don't go to Settings → Environments, that's a different feature.
-2. If a `VITE_GOOGLE_CLIENT_ID` row is already listed (Vercel sometimes adds it for you when it imports the project), open its **⋯** menu and choose **Edit**; otherwise click **Add Environment Variable**. Either way, Key: `VITE_GOOGLE_CLIENT_ID`, Value: paste the Client ID you copied from the Google Auth Platform page. Leave the other options as they are.
-3. Vercel warns that `VITE_` exposes the value to the browser and asks you to verify it's safe to share publicly. It is; that's how this value is designed to work. Mark it as safe and save.
-4. The new value only takes effect on a fresh deployment. Go to **Deployments** in the left menu. The wide row in the list is your deployment: open its **⋯** menu, choose **Redeploy**, and confirm in the dialog. You'll know it worked when a new row appears at the top of the list and turns Ready in about a minute.
+2. If a `VITE_GOOGLE_CLIENT_ID` row is already listed (Vercel often adds one for you), **delete it instead of editing it**: open its **⋯** menu and choose Remove. Vercel adds that row in a locked form it won't let you change, so editing runs into an error you can't get past. Adding a fresh one takes seconds.
+3. Click **Add Environment Variable**. Key: `VITE_GOOGLE_CLIENT_ID`. Value: paste the Client ID you copied from the Google Auth Platform page. Type: **Config**. Leave the other options as they are.
+4. Vercel warns that `VITE_` exposes the value to the browser and asks you to verify it's safe to share publicly. It is; that's how this value is designed to work. Mark it as safe and save.
+5. The new value only takes effect on a fresh deployment. Go to **Deployments** in the left menu. The wide row in the list is your deployment: open its **⋯** menu, choose **Redeploy**, and confirm in the dialog. You'll know it worked when a new row appears at the top of the list and turns Ready in about a minute.
 
 ## Step 7: Connect and check
 
