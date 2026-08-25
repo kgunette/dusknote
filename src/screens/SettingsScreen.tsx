@@ -5,7 +5,7 @@ import { AppMark } from '../components/AppMark';
 import { XCircleIcon } from '../components/icons';
 import { getBackupStatus } from '../google/backup';
 import { type GoogleSync } from '../google/useGoogleSync';
-import { APP_NAME, GOOGLE_CLIENT_ID, SITE_URL } from '../config';
+import { APP_NAME, APP_VERSION, GOOGLE_CLIENT_ID, SITE_URL } from '../config';
 import { parseImportCsv } from '../importCsv';
 
 // Injected at build time by vite.config.ts (the git short SHA). Shown in the footer so the
@@ -499,7 +499,7 @@ export function SettingsScreen({
           )}
 
           <div className="caption" style={{ opacity: 0.6, marginTop: 2, textAlign: 'right' }}>
-            build {__BUILD__}
+            v{APP_VERSION} &middot; build {__BUILD__}
           </div>
         </div>
 
