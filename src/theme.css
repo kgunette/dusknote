@@ -38,12 +38,23 @@ body {
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
+  /* The page itself may never pan; only .scroll may (see below). pinch-zoom is kept so the app
+     can still be magnified. Measured on an iPhone home-screen app, 2026-08-25: the screen is 874
+     points tall and the app draws all 874, but iOS treats only 812 of it as the page, so 62 points
+     always hang past what it will scroll. A drag anywhere outside the feed (the Log button, the tab
+     row) then panned the whole app up, and it stayed there instead of springing back. Height alone
+     cannot fix that: at 874 the page can pan, at 812 the tab row sits 62 points above the bottom of
+     the screen with dead space below it, and overflow:hidden makes iOS clip at 812 rather than
+     refuse to scroll, which cuts the tab row in half. Refusing the pan is what works. */
+  touch-action: pinch-zoom;
 }
 
 #root {
   /* iOS home-screen apps can resolve 100dvh shorter than the physical screen, floating the
      whole app (and the tab bar) up and leaving dark space below. lvh fills to the true bottom;
-     the tab bar's safe-area padding keeps the labels above the home indicator. */
+     the tab bar's safe-area padding keeps the labels above the home indicator. Confirmed again
+     2026-08-25: on device, lvh is 874 and a percentage height is 812, and 812 puts the dead space
+     back. lvh is right for what the app draws; body's touch-action is what stops the page panning. */
   height: 100vh;
   height: 100lvh;
 }
@@ -112,6 +123,8 @@ body {
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-y pinch-zoom; /* the one element allowed to pan */
+  overscroll-behavior: contain; /* leftover momentum stops here, never reaches the page */
   padding: 0 20px 18px;
   display: flex;
   flex-direction: column;
