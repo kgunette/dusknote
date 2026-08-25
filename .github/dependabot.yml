@@ -1,8 +1,12 @@
 # Security fixes only. Routine version bumps are deliberately off:
-# a one-time full dependency refresh happens once before the first public
-# release, so the app launches current without weekly churn.
+# a one-time full dependency refresh was done before the first public
+# release, so the app launched current without weekly churn.
 # open-pull-requests-limit: 0 disables version-update PRs; GitHub's
 # security-update PRs are unaffected and stay on.
+# This file only takes effect when the repository has Dependabot alerts and automated
+# security fixes switched on (Settings, Advanced Security). They were switched on
+# 2026-08-25. A fork starts with them off and inherits nothing from here, so a fork
+# maintainer has to turn them on for this config to do anything.
 version: 2
 updates:
   - package-ecosystem: "npm"
