@@ -121,6 +121,11 @@ function CalendarKey() {
           no {noun()}
         </span>
       </div>
+      {/* A calendar day opens the Log filtered to that day, and the grid itself cannot show that:
+          a chevron inside a 7-column block of day numbers would be noise. The Key is the
+          calendar's legend, so the instruction belongs here, sized to the types row above so it
+          reads as a footnote rather than outweighing the legend it follows. */}
+      <div className="cal-key-tap">Tap a day to see its entries.</div>
     </div>
   );
 }
@@ -363,6 +368,8 @@ function DataMonth({
                     <span className="rating-word rating-zero">{word}</span>
                     <span className="rating-leader" aria-hidden="true" />
                     <span className="rating-ct rating-zero">0</span>
+                    {/* Not tappable, but the slot is kept so every count stays in one column. */}
+                    <span className="tap-arrow rating-arrow rating-arrow-empty" aria-hidden="true">›</span>
                   </div>
                 );
               }
@@ -384,6 +391,7 @@ function DataMonth({
                   <span className="rating-word">{word}</span>
                   <span className="rating-leader" aria-hidden="true" />
                   <span className="rating-ct">{count}</span>
+                  <span className="tap-arrow rating-arrow" aria-hidden="true">›</span>
                 </button>
               );
             })}
