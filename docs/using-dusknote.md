@@ -36,6 +36,31 @@ Everything you log is saved. Your log shows all of your notes, and so does the t
 - On Stats it covers your whole history. In the report it follows the date range you chose, like everything else on the page.
 - Attempts with no recorded outcome are counted separately ("20 of 44 tries have no outcome"), so you can always see how much of the picture the numbers cover.
 
+## The Stats tab
+
+Stats summarizes your history month by month. Each month gets a card: a calendar of the month, and the counts for that month underneath it.
+
+The calendar shows one cell per day. A shaded cell is a day you rated, and the brighter the color, the worse the day. An outlined cell is an episode you logged without a rating. A hatched cell falls inside a coverage gap. A blank cell means nothing was recorded. The Calendar Key at the top of the tab describes this all visually.
+
+Under the calendar are your counts: episode days, episode entries, your ratings broken out by level, and a row for each medication that has a limit. A day that you logged three times is one episode day and three episode entries. A medication that went past its limit shows as a fraction in amber.
+
+Months you weren't tracking don't get a card. They collapse into a single line saying so, because missing data is never counted as zero.
+
+The What helped card sits at the top of the tab (above the months) and covers your whole history rather than one month. It has its own section below.
+
+**Two things you won't find here.** Events aren't on Stats at all: they live in your log, and they go in your report when you check "Events." Days you rated 0 (symptoms, no episode) aren't counted as episodes, so they stay out of episode days, episode entries and the rating rows, and their calendar cell is blank, the same as a day with nothing recorded.
+
+There's one exception: if you recorded a medication on a 0 day, that day still counts in that medication's row. The row is asking how often you take the thing, and you took it.
+
+**Tap to open the entries behind a number.** Most of what Stats shows is a way back into your log:
+
+- a calendar day with an episode in it
+- the episode days count
+- any rating row with a count above zero
+- any medication row with at least one day
+
+Each one opens the Log filtered to exactly those entries. Rows reflecting zero aren't tappable, since there are no entries they can reference.
+
 ## Watching a factor
 
 A factor is a hypothesis about your body. Maybe poor sleep sets you off. Maybe it's weather, or travel. Watching is how you test it: tap the eye next to a factor in Log options, and Stats starts splitting each month into days with that factor and days without.

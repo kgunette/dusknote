@@ -1006,6 +1006,21 @@ input[type='number']::-webkit-outer-spin-button {
   color: var(--muted-dim);
   font-weight: 400;
 }
+/* The chevron on a tappable rating row: the same mark the metric rows use (the span carries
+   .tap-arrow too), so a month card's tap targets read as one affordance. It lands at the row's
+   right edge, where the row's content ends, and NOT in a shared column with the metric rows'
+   chevrons: .metric packs its arrow against the label rather than spreading to the card edge.
+   Measured on the running app 2026-08-27, in a 424px card: rating chevrons at 402px, the
+   episode-days chevron at 158px. flex-shrink keeps this one whole; the leader gives up the width
+   instead, which is what it is there for. */
+.rating-arrow {
+  flex-shrink: 0;
+}
+/* A zero row has nothing to open, but keeps the slot: dropping it lets the count slide right and
+   the column goes ragged, against tabular-nums doing its job two rules up. */
+.rating-arrow-empty {
+  visibility: hidden;
+}
 
 /* Stats calendar — the month as a portrait */
 .cal-wrap {
@@ -1129,6 +1144,12 @@ input[type='number']::-webkit-outer-spin-button {
 }
 .cal-key-none {
   background: rgba(128, 138, 156, 0.09);
+}
+/* The "tap a day" line. Sized to .cal-key-types so the instruction reads as a footnote to the
+   legend rather than outweighing it (the .caption size sits above the types row and does). */
+.cal-key-tap {
+  font-size: 0.7188rem;
+  color: var(--muted-dim);
 }
 
 /* The feed's Stats-driven filter chip (#8): names the active filter, with a clear ✕ alongside. */
