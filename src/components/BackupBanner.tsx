@@ -22,14 +22,27 @@ export function BackupBanner({ phase, onReconnect }: { phase: SyncPhase; onRecon
     if (phase === 'ready') {
       localStorage.removeItem(RECONNECT_PENDING_KEY);
       setShowSuccess(true);
-      const t = setTimeout(() => setShowSuccess(false), SUCCESS_MS);
-      return () => clearTimeout(t);
+      return;
     }
     if (phase === 'reconnect' || phase === 'disconnected' || phase === 'error') {
       localStorage.removeItem(RECONNECT_PENDING_KEY);
     }
     // 'preparing' / 'choose' are mid-flight: keep the breadcrumb and wait for the outcome.
   }, [phase]);
+
+  // The dismiss timer is deliberately its own effect, watching only whether the confirmation is
+  // up. It used to live in the effect above, keyed on `phase`, and any phase change inside the
+  // 4s window destroyed it for good: the cleanup cleared the timeout, the effect re-ran, and the
+  // first line found the breadcrumb already consumed and returned without scheduling a new one.
+  // The confirmation then sat on screen until the Log screen was left. Worst case in the wild is
+  // a reconnect that succeeds and then errors within four seconds, leaving "Backup reconnected."
+  // on display while the app is anything but. Keyed on `showSuccess`, nothing about the
+  // connection can cancel it.
+  useEffect(() => {
+    if (!showSuccess) return;
+    const t = setTimeout(() => setShowSuccess(false), SUCCESS_MS);
+    return () => clearTimeout(t);
+  }, [showSuccess]);
 
   const reconnect = () => {
     localStorage.setItem(RECONNECT_PENDING_KEY, '1'); // read back after the redirect reboots the app
