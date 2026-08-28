@@ -161,6 +161,122 @@ export function parseTreatments(cell: string): Attempt[] {
     });
 }
 
+// ---- The Preferences table, read for what it STATES ----
+//
+// Two callers want different things from the same table. A sheet PULL is recovery: a phone being
+// restored has nothing of its own, so anything the table leaves out should fall back to the app's
+// default. A Preferences IMPORT is the opposite: the device already holds settings the person
+// chose, and the rule there is that a setting the file never mentions is left alone. Neither can
+// be built on the other's answer, so this reader reports what the table actually states and lets
+// each caller decide what absence means.
+
+/** One Kind=item row, exactly as stated. Whether an optional column exists at all is reported
+ *  once on StatedPreferences, since a column is present or absent for the whole table. */
+export interface StatedItem {
+  /** 1-based row number in the table, so an import error can name the row a person can go and fix. */
+  row: number;
+  label: string;
+  /** The Type cell verbatim, or null when it is empty. Unrecognized words come through as
+   *  written so the import can name what it found; the pull path treats anything odd as a remedy. */
+  type: string | null;
+  /** A whole number >= 1, or null for no limit. Meaningful only when `columns.limit`. */
+  limit: number | null;
+  /** Meaningful only when `columns.archived`. */
+  archived: boolean;
+  /** The cell said "watched". Applying it to a non-factor is each caller's own business.
+   *  Meaningful only when `columns.watched`. */
+  watched: boolean;
+}
+
+/** A single stated value, with the row it came from. */
+export interface StatedValue {
+  row: number;
+  value: string;
+}
+
+export interface StatedPreferences {
+  items: StatedItem[];
+  /** Which optional columns the table carries. An absent column states nothing for any row. */
+  columns: { limit: boolean; archived: boolean; watched: boolean };
+  /** Five slots for ratings 1 through 5; null where the table names no word for that level.
+   *  Each carries its row number so a caller that has to refuse a word can name the row. */
+  ratingWords: (StatedValue | null)[];
+  /** null when the table carries no setting row for it. */
+  conditionNoun: StatedValue | null;
+  patientName: StatedValue | null;
+  /** Pre-v3 chip/med rows, for the pull path's accept-old sheet recovery. */
+  legacyChips: ChipDef[];
+  legacyMeds: TrackedMed[];
+}
+
+/** Read a Preferences table (header row + data rows) for what it states. Never throws; a row it
+ *  cannot make sense of is left out rather than guessed at. */
+export function readPreferenceRows(rows: string[][]): StatedPreferences {
+  const header = (rows[0] ?? []).map((h) => h.trim());
+  const idx: Record<string, number> = {};
+  header.forEach((h, i) => {
+    if (idx[h] == null) idx[h] = i;
+  });
+  const cell = (row: string[], name: string) => (idx[name] != null ? (row[idx[name]] ?? '') : '');
+
+  const items: StatedItem[] = [];
+  const ratingWords: (StatedValue | null)[] = [null, null, null, null, null];
+  let conditionNoun: StatedValue | null = null;
+  let patientName: StatedValue | null = null;
+  const legacyChips: ChipDef[] = [];
+  const legacyMeds: TrackedMed[] = [];
+
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r];
+    const kind = cell(row, 'Kind').trim();
+    const label = cell(row, 'Label');
+    if (!label) continue; // a row that names nothing states nothing
+    const limStr = cell(row, 'Limit');
+    const lim = Number(limStr);
+    const limit = limStr !== '' && Number.isFinite(lim) && lim >= 1 ? Math.round(lim) : null;
+    if (kind === 'item') {
+      items.push({
+        row: r + 1,
+        label,
+        type: cell(row, 'Type').trim() || null,
+        limit,
+        archived: cell(row, 'Archived').trim().toLowerCase() === 'archived',
+        watched: cell(row, 'Watched').trim().toLowerCase() === 'watched',
+      });
+    } else if (kind === 'rating') {
+      // The level sits in the Type column (Kind=rating, Label=word).
+      const level = Number(cell(row, 'Type'));
+      if (Number.isInteger(level) && level >= 1 && level <= 5)
+        ratingWords[level - 1] = { row: r + 1, value: label };
+    } else if (kind === 'setting') {
+      // The value sits in Label, the setting key in Type.
+      const key = cell(row, 'Type').trim();
+      if (key === 'noun') conditionNoun = { row: r + 1, value: label };
+      else if (key === 'name') patientName = { row: r + 1, value: label };
+    } else if (kind === 'chip') {
+      legacyChips.push({ label, type: (cell(row, 'Type') as ChipDef['type']) || 'remedy' });
+    } else if (kind === 'med') {
+      legacyMeds.push({ name: label, limit });
+    }
+    // Any other Kind is left alone on purpose: a table written by a newer version of the app
+    // must not make this one refuse the whole file over a row it has no opinion about.
+  }
+
+  return {
+    items,
+    columns: {
+      limit: idx['Limit'] != null,
+      archived: idx['Archived'] != null,
+      watched: idx['Watched'] != null,
+    },
+    ratingWords,
+    conditionNoun,
+    patientName,
+    legacyChips,
+    legacyMeds,
+  };
+}
+
 /** Parse the four tabs (raw values incl. header rows) back into a local snapshot. */
 export function parseTabs(raw: Record<string, string[][]>): SyncSnapshot {
   const entries: Entry[] = [];
@@ -192,47 +308,27 @@ export function parseTabs(raw: Record<string, string[][]>): SyncSnapshot {
     });
   }
 
-  // Preferences: new format is one row per vocab item (Kind=item). Old backups carry Kind=chip
-  // and Kind=med rows; read those too and rebuild vocab from them (accept-old, write-new), so
-  // recovery from a pre-Slice-C sheet still works.
-  const pRows = raw.Preferences ?? [];
-  const vocab: VocabItem[] = [];
-  const legacyChips: ChipDef[] = [];
-  const legacyMeds: TrackedMed[] = [];
-  const ratingWords: string[] = [...RATING_WORDS]; // default; overridden by any Kind=rating rows
-  let conditionNoun = 'episode'; // defaults stand unless v7 setting rows say otherwise
-  let patientName = '';
-  for (const r of pRows.slice(1)) {
-    const g = byHeader(pRows[0], r);
-    const kind = g('Kind');
-    const label = g('Label');
-    if (!label) continue;
-    const limStr = g('Limit');
-    const lim = Number(limStr);
-    const limit = limStr !== '' && Number.isFinite(lim) && lim >= 1 ? Math.round(lim) : null;
-    if (kind === 'item') {
-      const type = (g('Type') as VocabItem['type']) || 'remedy';
-      vocab.push({
-        label,
-        type,
-        limit: type === 'medication' ? limit : null,
-        archived: g('Archived').trim().toLowerCase() === 'archived',
-        // Absent column (pre-v6 sheet) reads as not watched — accept-old, write-new.
-        watched: type === 'factor' && g('Watched').trim().toLowerCase() === 'watched',
-      });
-    } else if (kind === 'rating') {
-      const level = Number(g('Type'));
-      if (Number.isInteger(level) && level >= 1 && level <= 5) ratingWords[level - 1] = label;
-    } else if (kind === 'setting') {
-      // v7: Label holds the value, Type the key. Absent rows (pre-v7 sheet) keep defaults.
-      if (g('Type') === 'noun') conditionNoun = label;
-      else if (g('Type') === 'name') patientName = label;
-    } else if (kind === 'chip') {
-      legacyChips.push({ label, type: (g('Type') as ChipDef['type']) || 'remedy' });
-    } else if (kind === 'med') {
-      legacyMeds.push({ name: label, limit });
-    }
-  }
+  // Preferences: read what the table STATES, then fill this path's defaults in on top. A pull is
+  // recovery, so a missing rating row or setting row means "use the app's own default": a phone
+  // being restored has nothing of its own to keep. The Preferences IMPORT wants the opposite and
+  // reads the same table through readPreferenceRows directly.
+  const stated = readPreferenceRows(raw.Preferences ?? []);
+  const vocab: VocabItem[] = stated.items.map((it) => {
+    const type = (it.type as VocabItem['type']) || 'remedy';
+    return {
+      label: it.label,
+      type,
+      limit: type === 'medication' ? it.limit : null,
+      archived: it.archived,
+      // Absent column (pre-v6 sheet) reads as not watched — accept-old, write-new.
+      watched: type === 'factor' && it.watched,
+    };
+  });
+  const ratingWords: string[] = RATING_WORDS.map((w, i) => stated.ratingWords[i]?.value ?? w);
+  // v7 settings: absent rows (pre-v7 sheet) keep the app's defaults.
+  const conditionNoun = stated.conditionNoun?.value ?? 'episode';
+  const patientName = stated.patientName?.value ?? '';
+  const { legacyChips, legacyMeds } = stated;
   const finalVocab = vocab.length ? vocab : vocabFromLegacy(legacyChips, legacyMeds);
 
   const cRows = raw.Gaps ?? [];
