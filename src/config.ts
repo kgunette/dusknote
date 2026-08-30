@@ -19,6 +19,13 @@ export const APP_VERSION: string = __APP_VERSION__;
 export const REPO = 'kgunette/dusknote';
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 
+/** A doc in the canonical repo. Deliberately not the reader's own fork: a fork is frozen until its
+ *  owner syncs, so linking here keeps every deployment pointed at the current guide. An anchor is
+ *  built from a heading's exact wording, so a heading a link depends on has to stay put. */
+export function docUrl(file: string, anchor = ''): string {
+  return `https://github.com/${REPO}/blob/main/docs/${file}${anchor}`;
+}
+
 /** The project's front door, linked from the Settings footer. Deliberately points at the project
  *  rather than the maker's personal site: a fork is frozen until its owner syncs, so anything
  *  hardcoded here is effectively permanent in that copy, and this way how the maker is presented

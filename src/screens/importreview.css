@@ -1,0 +1,43 @@
+/* The import review screen. One row per change, old value quiet and new value bold, because you
+   are approving a change and both halves have to be visible. */
+
+.chg-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 7px 0;
+}
+.chg-row + .chg-row {
+  border-top: 1px solid var(--border-faint);
+}
+.chg-label {
+  font-size: 1.0625rem;
+  color: var(--text);
+}
+.chg-move {
+  font-size: 0.9375rem;
+  color: var(--muted);
+}
+.chg-to {
+  color: var(--text);
+  font-weight: 700;
+}
+.chg-kind {
+  font-size: 0.9375rem;
+  color: var(--muted);
+}
+.chg-note {
+  font-size: 0.8125rem;
+  color: var(--muted-dim);
+  line-height: 1.5;
+}
+.chg-note a {
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border-faint);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
