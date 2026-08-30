@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { comparePrefs, isEmptyChanges, type DeviceState } from './importPrefs';
+import { applyPrefs, comparePrefs, isEmptyChanges, type DeviceState } from './importPrefs';
 import type { PrefFile, PrefItem } from './importCsv';
 import type { ChipType, VocabItem } from './types';
 
@@ -232,5 +232,109 @@ describe('order', () => {
       'Hot shower',
       'Weather',
     ]);
+  });
+});
+
+// Applying is the same pass that produced the list, so what the review screen showed is exactly
+// what happens. These check the result itself, and that a second look finds nothing left to do.
+describe('applying the changes', () => {
+  it('changes an option\'s type in place', () => {
+    const next = applyPrefs(file([item('Coffee', 'remedy')]), device({ vocab: [vocab('Coffee', 'medication')] }));
+    expect(next.vocab).toEqual([{ label: 'Coffee', type: 'remedy', limit: null, archived: false, watched: false }]);
+  });
+
+  it('sets a limit, archives, and watches', () => {
+    const next = applyPrefs(
+      file([
+        item('Sumatriptan', 'medication', { limit: 10 }),
+        item('Rizatriptan', 'medication', { archived: true }),
+        item('Poor sleep', 'factor', { watched: true }),
+      ]),
+      device({
+        vocab: [vocab('Sumatriptan', 'medication'), vocab('Rizatriptan', 'medication'), vocab('Poor sleep', 'factor')],
+      })
+    );
+    expect(next.vocab[0].limit).toBe(10);
+    expect(next.vocab[1].archived).toBe(true);
+    expect(next.vocab[2].watched).toBe(true);
+  });
+
+  it('adds a new option after the ones already there, keeping its archived state', () => {
+    const next = applyPrefs(
+      file([item('Light sensitivity', 'symptom'), item('Rizatriptan', 'medication', { archived: true })]),
+      device({ vocab: [vocab('Coffee', 'remedy')] })
+    );
+    expect(next.vocab.map((v) => v.label)).toEqual(['Coffee', 'Light sensitivity', 'Rizatriptan']);
+    expect(next.vocab[2].archived).toBe(true);
+  });
+
+  it('leaves an option the file never mentions exactly as it was', () => {
+    const mine = vocab('Nausea', 'symptom', { archived: true });
+    const next = applyPrefs(file([item('Coffee', 'remedy')]), device({ vocab: [mine, vocab('Coffee', 'remedy')] }));
+    expect(next.vocab[0]).toBe(mine);
+  });
+
+  it('never removes an option', () => {
+    const before = [vocab('Coffee', 'remedy'), vocab('Nausea', 'symptom'), vocab('Weather', 'factor')];
+    const next = applyPrefs(file([item('Coffee', 'medication')]), device({ vocab: before }));
+    expect(next.vocab).toHaveLength(3);
+    expect(next.vocab.map((v) => v.label).sort()).toEqual(['Coffee', 'Nausea', 'Weather']);
+  });
+
+  it('drops the limit when a medication becomes a remedy', () => {
+    const next = applyPrefs(
+      file([item('Coffee', 'remedy')]),
+      device({ vocab: [vocab('Coffee', 'medication', { limit: 5 })] })
+    );
+    expect(next.vocab[0]).toEqual({ label: 'Coffee', type: 'remedy', limit: null, archived: false, watched: false });
+  });
+
+  it('replaces only the rating words the file names', () => {
+    const next = applyPrefs(
+      file([], { ratingWords: [null, null, null, 'Bad', 'Worst'] }),
+      device({ ratingWords: ['Mild', 'Moderate', 'Bad', 'Severe', 'Very severe'] })
+    );
+    expect(next.ratingWords).toEqual(['Mild', 'Moderate', 'Bad', 'Bad', 'Worst']);
+  });
+
+  it('sets the word you track and the report name only when the file states them', () => {
+    const stated = applyPrefs(
+      file([], { conditionNoun: 'headache', patientName: 'A Name' }),
+      device({ conditionNoun: 'episode', patientName: '' })
+    );
+    expect(stated.conditionNoun).toBe('headache');
+    expect(stated.patientName).toBe('A Name');
+
+    const unstated = applyPrefs(file([]), device({ conditionNoun: 'headache', patientName: 'A Name' }));
+    expect(unstated.conditionNoun).toBe('headache');
+    expect(unstated.patientName).toBe('A Name');
+  });
+
+  it('changes nothing a partial file does not state', () => {
+    const before = device({ vocab: [vocab('Sumatriptan', 'medication', { limit: 10, archived: true })] });
+    const next = applyPrefs(
+      file([item('Sumatriptan', 'medication')], { states: { limit: false, archived: false, watched: false } }),
+      before
+    );
+    expect(next.vocab[0].limit).toBe(10);
+    expect(next.vocab[0].archived).toBe(true);
+  });
+
+  it('leaves nothing to do the second time, so the screen and the result agree', () => {
+    const f = file(
+      [
+        item('Coffee', 'remedy'),
+        item('Sumatriptan', 'medication', { limit: 10 }),
+        item('Rizatriptan', 'medication', { archived: true }),
+        item('Poor sleep', 'factor', { watched: true }),
+        item('Light sensitivity', 'symptom'),
+      ],
+      { ratingWords: [null, null, null, 'Bad', 'Worst'], conditionNoun: 'headache', patientName: 'A Name' }
+    );
+    const before = device({
+      vocab: [vocab('Coffee', 'medication', { limit: 5 }), vocab('Sumatriptan', 'medication'), vocab('Rizatriptan', 'medication'), vocab('Poor sleep', 'factor')],
+    });
+    expect(isEmptyChanges(comparePrefs(f, before))).toBe(false);
+    expect(isEmptyChanges(comparePrefs(f, applyPrefs(f, before)))).toBe(true);
   });
 });

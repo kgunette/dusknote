@@ -1,8 +1,13 @@
-// What a Preferences file would change, worked out against what the device already holds.
+// What a Preferences file would change, worked out against what the device already holds, and
+// what the result would be.
 //
-// This module never writes anything. It answers one question: if this file were applied, what
-// would be different? The review screen shows that answer and the person decides. Opening a file
-// to look at it must leave everything exactly as it was.
+// Both come from ONE pass, deliberately. The review screen promises that what it lists is what
+// will happen, so the list and the result must never be worked out by two pieces of code that
+// could drift apart. `planPrefsImport` produces both together; `comparePrefs` and `applyPrefs`
+// are the two halves of its answer.
+//
+// Nothing here writes anything or touches storage. Opening a file to look at it must leave
+// everything exactly as it was.
 //
 // The rule, in the person's own words: anything the file has a setting for, it overwrites;
 // anything it doesn't have a setting for, nothing changes. Nothing is ever removed. So a setting
@@ -86,7 +91,14 @@ function resolve(existing: VocabItem, file: PrefItem, states: PrefFile['states']
  * because changing a label means rewriting it across every past entry, which is what the rename
  * in Log options is for.
  */
-export function comparePrefs(file: PrefFile, device: DeviceState): PrefChanges {
+export interface PrefPlan {
+  /** What the review screen lists. */
+  changes: PrefChanges;
+  /** What the device would hold afterwards. Nothing is ever removed from the option list. */
+  next: DeviceState;
+}
+
+export function planPrefsImport(file: PrefFile, device: DeviceState): PrefPlan {
   const byKey = new Map<string, VocabItem>();
   const treatmentByLabel = new Map<string, VocabItem>();
   for (const v of device.vocab) {
@@ -96,6 +108,13 @@ export function comparePrefs(file: PrefFile, device: DeviceState): PrefChanges {
 
   const changed: ItemChange[] = [];
   const added: NewItem[] = [];
+  // The result starts as exactly what the device holds. An option the file never mentions is
+  // never touched, and nothing is ever taken out of this list.
+  const nextVocab = [...device.vocab];
+  const replace = (was: VocabItem, now: VocabItem) => {
+    const at = nextVocab.indexOf(was);
+    if (at >= 0) nextVocab[at] = now;
+  };
 
   for (const item of file.items) {
     const existing =
@@ -105,10 +124,14 @@ export function comparePrefs(file: PrefFile, device: DeviceState): PrefChanges {
         : undefined);
 
     if (!existing) {
-      added.push({
+      const archived = file.states.archived ? item.archived : false;
+      added.push({ label: item.label, type: item.type, archived });
+      nextVocab.push({
         label: item.label,
         type: item.type,
-        archived: file.states.archived ? item.archived : false,
+        limit: item.type === 'medication' && file.states.limit ? item.limit : null,
+        archived,
+        watched: item.type === 'factor' && file.states.watched ? item.watched : false,
       });
       continue;
     }
@@ -126,6 +149,8 @@ export function comparePrefs(file: PrefFile, device: DeviceState): PrefChanges {
       changed.push({ label, type, field: 'archived', from: existing.archived, to: next.archived });
     if (type === 'factor' && !!existing.watched !== next.watched)
       changed.push({ label, type, field: 'watched', from: !!existing.watched, to: next.watched });
+
+    replace(existing, { ...existing, ...next });
   }
 
   const ratings: PrefChanges['ratings'] = [];
@@ -148,10 +173,28 @@ export function comparePrefs(file: PrefFile, device: DeviceState): PrefChanges {
     a.label.localeCompare(b.label, undefined, { sensitivity: 'base' });
 
   return {
-    noun,
-    name,
-    ratings,
-    changed: changed.sort(inScreenOrder),
-    added: added.sort(inScreenOrder),
+    changes: {
+      noun,
+      name,
+      ratings,
+      changed: changed.sort(inScreenOrder),
+      added: added.sort(inScreenOrder),
+    },
+    next: {
+      vocab: nextVocab,
+      ratingWords: device.ratingWords.map((w, i) => file.ratingWords[i] ?? w),
+      conditionNoun: noun ? noun.to : device.conditionNoun,
+      patientName: name ? name.to : device.patientName,
+    },
   };
+}
+
+/** What the review screen lists. */
+export function comparePrefs(file: PrefFile, device: DeviceState): PrefChanges {
+  return planPrefsImport(file, device).changes;
+}
+
+/** What the device holds once the person presses Apply. Same pass as the list they approved. */
+export function applyPrefs(file: PrefFile, device: DeviceState): DeviceState {
+  return planPrefsImport(file, device).next;
 }
