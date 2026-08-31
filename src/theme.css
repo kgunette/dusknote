@@ -1448,6 +1448,12 @@ input.inp-error {
 .dose-count {
   font-size: 0.875rem;
   color: var(--muted);
+  /* Never break the count across lines. The mockup drew the time beside it as plain text, but the
+     real control is a 160px time input (it has to fit "12:07 PM" plus Chrome's clock glyph), so at
+     phone width the name and count share a cramped column. Without this it wrapped as
+     "Ibuprofen 3" / "of 2 today", splitting the number off the thing it counts. Found by measuring
+     the running app, not the mockup. */
+  white-space: nowrap;
 }
 .dose-count.over {
   color: var(--warn);
