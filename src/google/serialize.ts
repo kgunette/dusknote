@@ -31,7 +31,10 @@ export const TAB_ORDER = ['Entries', 'Events', 'Gaps', 'Preferences'] as const;
  *  v5: dropped the End column from Entries (end-time was cut from the form 2026-07-04 and never
  *      repopulated, so the column only held one stale value; the model field stays dormant), 2026-07-06.
  *  v6: Preferences gains a Watched column (Kind=item factor rows; the Stats with/without split), 2026-07-23.
- *  v7: Preferences gains Kind=setting rows (the condition noun; the report patient name), 2026-07-23. */
+ *  v7: Preferences gains Kind=setting rows (the condition noun; the report patient name), 2026-07-23.
+ *  v8: Preferences gains a DailyLimit column (doses in one day, on Kind=item medication rows),
+ *      2026-08-31. Purely additive: an older sheet has no such column, which states nothing and
+ *      reads as null, so nothing written before v8 needs converting. */
 export const SHEET_SCHEMA_VERSION = 7;
 
 export const HEADERS: Record<string, string[]> = {
@@ -54,7 +57,7 @@ export const HEADERS: Record<string, string[]> = {
   Gaps: ['Start', 'End', 'Reason'],
   // Machine state that travels to a new phone: one row per vocab item (Kind=item). Kept
   // human-readable — Label/Type spell it out, Limit is a plain number, Archived is a word.
-  Preferences: ['Kind', 'Label', 'Type', 'Limit', 'Archived', 'Watched'],
+  Preferences: ['Kind', 'Label', 'Type', 'Limit', 'Archived', 'Watched', 'DailyLimit'],
 };
 
 /** One readable treatment cell: "06:15 Water → no; 08:30 Ibuprofen → yes". */
@@ -114,12 +117,13 @@ export function buildTabs(s: SyncSnapshot): TabValues[] {
           v.limit == null ? '' : String(v.limit),
           v.archived ? 'archived' : '',
           v.watched ? 'watched' : '',
+          v.dailyLimit == null ? '' : String(v.dailyLimit),
         ]),
         // rating rows: the level sits in the Type column (Kind=rating, Label=word).
-        ...s.ratingWords.map((w, i) => ['rating', w, String(i + 1), '', '', '']),
+        ...s.ratingWords.map((w, i) => ['rating', w, String(i + 1), '', '', '', '']),
         // setting rows: the value sits in Label, the setting key in Type (Kind=setting, v7).
-        ['setting', s.conditionNoun, 'noun', '', '', ''],
-        ...(s.patientName ? [['setting', s.patientName, 'name', '', '', '']] : []),
+        ['setting', s.conditionNoun, 'noun', '', '', '', ''],
+        ...(s.patientName ? [['setting', s.patientName, 'name', '', '', '', '']] : []),
       ],
     },
   ];
@@ -179,8 +183,12 @@ export interface StatedItem {
   /** The Type cell verbatim, or null when it is empty. Unrecognized words come through as
    *  written so the import can name what it found; the pull path treats anything odd as a remedy. */
   type: string | null;
-  /** A whole number >= 1, or null for no limit. Meaningful only when `columns.limit`. */
+  /** The MONTHLY limit: a whole number >= 1, or null for none. Meaningful only when
+   *  `columns.limit`. */
   limit: number | null;
+  /** The DAILY limit: a whole number >= 1, or null for none. Meaningful only when
+   *  `columns.dailyLimit`; a table written before v8 has no such column and states nothing. */
+  dailyLimit: number | null;
   /** Meaningful only when `columns.archived`. */
   archived: boolean;
   /** The cell said "watched". Applying it to a non-factor is each caller's own business.
@@ -197,7 +205,7 @@ export interface StatedValue {
 export interface StatedPreferences {
   items: StatedItem[];
   /** Which optional columns the table carries. An absent column states nothing for any row. */
-  columns: { limit: boolean; archived: boolean; watched: boolean };
+  columns: { limit: boolean; archived: boolean; watched: boolean; dailyLimit: boolean };
   /** Five slots for ratings 1 through 5; null where the table names no word for that level.
    *  Each carries its row number so a caller that has to refuse a word can name the row. */
   ratingWords: (StatedValue | null)[];
@@ -231,9 +239,13 @@ export function readPreferenceRows(rows: string[][]): StatedPreferences {
     const kind = cell(row, 'Kind').trim();
     const label = cell(row, 'Label');
     if (!label) continue; // a row that names nothing states nothing
-    const limStr = cell(row, 'Limit');
-    const lim = Number(limStr);
-    const limit = limStr !== '' && Number.isFinite(lim) && lim >= 1 ? Math.round(lim) : null;
+    const readLimit = (col: string): number | null => {
+      const raw = cell(row, col);
+      const n = Number(raw);
+      return raw !== '' && Number.isFinite(n) && n >= 1 ? Math.round(n) : null;
+    };
+    const limit = readLimit('Limit');
+    const dailyLimit = readLimit('DailyLimit');
     if (kind === 'item') {
       items.push({
         row: r + 1,
@@ -242,6 +254,7 @@ export function readPreferenceRows(rows: string[][]): StatedPreferences {
         limit,
         archived: cell(row, 'Archived').trim().toLowerCase() === 'archived',
         watched: cell(row, 'Watched').trim().toLowerCase() === 'watched',
+        dailyLimit,
       });
     } else if (kind === 'rating') {
       // The level sits in the Type column (Kind=rating, Label=word).
@@ -268,6 +281,7 @@ export function readPreferenceRows(rows: string[][]): StatedPreferences {
       limit: idx['Limit'] != null,
       archived: idx['Archived'] != null,
       watched: idx['Watched'] != null,
+      dailyLimit: idx['DailyLimit'] != null,
     },
     ratingWords,
     conditionNoun,
@@ -319,6 +333,8 @@ export function parseTabs(raw: Record<string, string[][]>): SyncSnapshot {
       label: it.label,
       type,
       limit: type === 'medication' ? it.limit : null,
+      // Absent column (pre-v8 sheet) reads as no daily limit — accept-old, write-new.
+      dailyLimit: type === 'medication' ? it.dailyLimit : null,
       archived: it.archived,
       // Absent column (pre-v6 sheet) reads as not watched — accept-old, write-new.
       watched: type === 'factor' && it.watched,

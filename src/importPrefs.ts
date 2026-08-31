@@ -26,6 +26,7 @@ const TYPE_ORDER: ChipType[] = ['symptom', 'medication', 'remedy', 'factor'];
 export type ItemChange =
   | { label: string; type: ChipType; field: 'type'; from: ChipType; to: ChipType }
   | { label: string; type: ChipType; field: 'limit'; from: number | null; to: number | null }
+  | { label: string; type: ChipType; field: 'dailyLimit'; from: number | null; to: number | null }
   | { label: string; type: ChipType; field: 'archived'; from: boolean; to: boolean }
   | { label: string; type: ChipType; field: 'watched'; from: boolean; to: boolean };
 
@@ -69,8 +70,14 @@ function resolve(existing: VocabItem, file: PrefItem, states: PrefFile['states']
   return {
     type,
     // A limit belongs to a medication and nothing else, so a type change away from medication
-    // takes the limit with it. That is not a separate decision to approve.
+    // takes BOTH limits with it. That is not a separate decision to approve.
     limit: type === 'medication' ? (states.limit ? file.limit : (existing.limit ?? null)) : null,
+    dailyLimit:
+      type === 'medication'
+        ? states.dailyLimit
+          ? file.dailyLimit
+          : (existing.dailyLimit ?? null)
+        : null,
     archived: states.archived ? file.archived : existing.archived,
     // Watching belongs to a factor the same way.
     watched: type === 'factor' ? (states.watched ? file.watched : !!existing.watched) : false,
@@ -82,10 +89,10 @@ function resolve(existing: VocabItem, file: PrefItem, states: PrefFile['states']
  *
  * Matching an option: an option's identity in this app is its type plus its label, so the same
  * name may legitimately be a symptom and a factor at once, and those stay two separate options.
- * The one pair the app forbids is a medication and a remedy sharing a name (entries store the
- * bare treatment name, with nothing to tell them apart), so a file naming one where the device
- * holds the other is the SAME option changing type. That is the `Coffee: medication -> remedy`
- * case the whole feature exists for.
+ * Treatments are ONE list with the medications marked, so a medication and a remedy can never be
+ * two options sharing a name (entries store the bare treatment name, with nothing to tell them
+ * apart). A file naming one where the device holds the other is therefore the SAME option, with its
+ * mark changing. That is the `Coffee: medication -> remedy` case the whole feature exists for.
  *
  * Spelling is never changed by a file. Matching folds case, and the device's own label stands,
  * because changing a label means rewriting it across every past entry, which is what the rename
@@ -130,6 +137,8 @@ export function planPrefsImport(file: PrefFile, device: DeviceState): PrefPlan {
         label: item.label,
         type: item.type,
         limit: item.type === 'medication' && file.states.limit ? item.limit : null,
+        dailyLimit:
+          item.type === 'medication' && file.states.dailyLimit ? item.dailyLimit : null,
         archived,
         watched: item.type === 'factor' && file.states.watched ? item.watched : false,
       });
@@ -145,6 +154,14 @@ export function planPrefsImport(file: PrefFile, device: DeviceState): PrefPlan {
     // change is what takes one away it is part of that change rather than its own row.
     if (type === 'medication' && (existing.limit ?? null) !== next.limit)
       changed.push({ label, type, field: 'limit', from: existing.limit ?? null, to: next.limit });
+    if (type === 'medication' && (existing.dailyLimit ?? null) !== next.dailyLimit)
+      changed.push({
+        label,
+        type,
+        field: 'dailyLimit',
+        from: existing.dailyLimit ?? null,
+        to: next.dailyLimit,
+      });
     if (existing.archived !== next.archived)
       changed.push({ label, type, field: 'archived', from: existing.archived, to: next.archived });
     if (type === 'factor' && !!existing.watched !== next.watched)

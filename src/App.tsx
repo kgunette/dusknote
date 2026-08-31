@@ -218,19 +218,20 @@ export default function App() {
   );
 
   // Adding a tap option from the log form runs through the SAME resolver as the Log options
-  // manager (one set of collision rules for both surfaces). Deliberate, the
-  // form resolves silently: create/revive as needed; an existing active name needs no change; a
-  // med<->remedy clash reuses the existing same-named item (reviving it if it was archived) rather
-  // than creating a duplicate. No mid-log message — the form already selected the typed label.
+  // manager (one set of collision rules for both surfaces). The form resolves without a message:
+  // create or revive as needed, and an existing active name needs no change. Nothing interrupts
+  // the person mid-record, because the form has already selected the label they typed.
+  //
+  // It states NO fields (2026-08-31), so a revived treatment keeps its own mark and both of its
+  // limits. Typing the name of a medication you archived must never quietly turn it back into an
+  // unmarked treatment and drop the limits with it. Whether a treatment is a medication is decided
+  // in Log options, where the explanation lives.
   const addChip = useCallback(
     async (chip: ChipDef) => {
       const current = (await prefs.vocab()) ?? (await ensureVocab());
-      const res = resolveAddItem(current, chip.type, chip.label); // limit omitted: preserve on revive
+      const res = resolveAddItem(current, chip.type, chip.label);
       if (res.status === 'created' || res.status === 'revived') {
         await prefs.setVocab(res.vocab);
-        await reload();
-      } else if (res.status === 'clash' && res.conflict.archived) {
-        await prefs.setVocab(current.map((v) => (v === res.conflict ? { ...v, archived: false } : v)));
         await reload();
       }
     },

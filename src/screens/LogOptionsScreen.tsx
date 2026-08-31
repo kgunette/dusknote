@@ -199,11 +199,7 @@ export function LogOptionsScreen({
       return;
     }
     const limit = editor.type === 'medication' ? parseLimit(editor.limit) : null;
-    const res = resolveAddItem(vocab, editor.type, label, limit);
-    if (res.status === 'clash') {
-      setEditor({ ...editor, error: `There’s already a ${res.conflict.type} called “${res.conflict.label}”. Give it a different name.` });
-      return;
-    }
+    const res = resolveAddItem(vocab, editor.type, label, { limit });
     if (res.status === 'exists') {
       setEditor({ ...editor, error: 'That’s already an option.' });
       return;

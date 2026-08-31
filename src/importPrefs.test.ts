@@ -11,6 +11,7 @@ const item = (label: string, type: ChipType, over: Partial<PrefItem> = {}): Pref
   label,
   type,
   limit: null,
+  dailyLimit: null,
   archived: false,
   watched: false,
   ...over,
@@ -18,7 +19,7 @@ const item = (label: string, type: ChipType, over: Partial<PrefItem> = {}): Pref
 
 const file = (items: PrefItem[], over: Partial<PrefFile> = {}): PrefFile => ({
   items,
-  states: { limit: true, archived: true, watched: true },
+  states: { limit: true, archived: true, watched: true, dailyLimit: true },
   ratingWords: [null, null, null, null, null],
   conditionNoun: null,
   patientName: null,
@@ -136,7 +137,10 @@ describe('adding an option', () => {
 });
 
 describe('a partial file changes nothing it does not state', () => {
-  const partial = (items: PrefItem[], states: PrefFile['states']) => file(items, { states });
+  // States default to "the file carries every column"; a case names only the one it drops. Taking a
+  // partial here means adding a column later does not rewrite every call below.
+  const partial = (items: PrefItem[], states: Partial<PrefFile['states']>) =>
+    file(items, { states: { limit: true, archived: true, watched: true, dailyLimit: true, ...states } });
 
   it('changes no limits when the file has no Limit column', () => {
     const c = comparePrefs(
@@ -240,7 +244,9 @@ describe('order', () => {
 describe('applying the changes', () => {
   it('changes an option\'s type in place', () => {
     const next = applyPrefs(file([item('Coffee', 'remedy')]), device({ vocab: [vocab('Coffee', 'medication')] }));
-    expect(next.vocab).toEqual([{ label: 'Coffee', type: 'remedy', limit: null, archived: false, watched: false }]);
+    expect(next.vocab).toEqual([
+      { label: 'Coffee', type: 'remedy', limit: null, dailyLimit: null, archived: false, watched: false },
+    ]);
   });
 
   it('sets a limit, archives, and watches', () => {
@@ -286,7 +292,14 @@ describe('applying the changes', () => {
       file([item('Coffee', 'remedy')]),
       device({ vocab: [vocab('Coffee', 'medication', { limit: 5 })] })
     );
-    expect(next.vocab[0]).toEqual({ label: 'Coffee', type: 'remedy', limit: null, archived: false, watched: false });
+    expect(next.vocab[0]).toEqual({
+      label: 'Coffee',
+      type: 'remedy',
+      limit: null,
+      dailyLimit: null,
+      archived: false,
+      watched: false,
+    });
   });
 
   it('replaces only the rating words the file names', () => {
@@ -313,7 +326,9 @@ describe('applying the changes', () => {
   it('changes nothing a partial file does not state', () => {
     const before = device({ vocab: [vocab('Sumatriptan', 'medication', { limit: 10, archived: true })] });
     const next = applyPrefs(
-      file([item('Sumatriptan', 'medication')], { states: { limit: false, archived: false, watched: false } }),
+      file([item('Sumatriptan', 'medication')], {
+        states: { limit: false, archived: false, watched: false, dailyLimit: false },
+      }),
       before
     );
     expect(next.vocab[0].limit).toBe(10);
@@ -336,5 +351,56 @@ describe('applying the changes', () => {
     });
     expect(isEmptyChanges(comparePrefs(f, before))).toBe(false);
     expect(isEmptyChanges(comparePrefs(f, applyPrefs(f, before)))).toBe(true);
+  });
+});
+
+// The daily limit travels through import on exactly the same rule as everything else: stated is
+// applied, unstated changes nothing. Worth its own block because it is the one column an older
+// file cannot carry, and every file in the world is an older file until someone exports again.
+describe('the daily limit through import', () => {
+  const partial = (items: PrefItem[], states: Partial<PrefFile['states']>) =>
+    file(items, { states: { limit: true, archived: true, watched: true, dailyLimit: true, ...states } });
+
+  it('lists a daily limit change as its own row, with both values', () => {
+    const c = comparePrefs(
+      file([item('Sumatriptan', 'medication', { dailyLimit: 2 })]),
+      device({ vocab: [vocab('Sumatriptan', 'medication')] })
+    );
+    expect(c.changed).toEqual([
+      { label: 'Sumatriptan', type: 'medication', field: 'dailyLimit', from: null, to: 2 },
+    ]);
+  });
+
+  it('leaves a daily limit alone when the file has no DailyLimit column', () => {
+    // The pre-v8 case: your own export from last week, or anyone else's sheet.
+    const c = comparePrefs(
+      partial([item('Sumatriptan', 'medication', { limit: 10 })], { dailyLimit: false }),
+      device({ vocab: [vocab('Sumatriptan', 'medication', { limit: 10, dailyLimit: 2 })] })
+    );
+    expect(isEmptyChanges(c)).toBe(true);
+  });
+
+  it('applies a stated daily limit', () => {
+    const next = applyPrefs(
+      file([item('Sumatriptan', 'medication', { limit: 10, dailyLimit: 2 })]),
+      device({ vocab: [vocab('Sumatriptan', 'medication', { limit: 10 })] })
+    );
+    expect(next.vocab[0]).toMatchObject({ limit: 10, dailyLimit: 2 });
+  });
+
+  it('carries a daily limit onto an option the device does not have yet', () => {
+    const next = applyPrefs(
+      file([item('Ibuprofen', 'medication', { dailyLimit: 3 })]),
+      device()
+    );
+    expect(next.vocab[0]).toMatchObject({ label: 'Ibuprofen', dailyLimit: 3 });
+  });
+
+  it('drops BOTH limits when a medication becomes an unmarked treatment', () => {
+    const next = applyPrefs(
+      file([item('Coffee', 'remedy')]),
+      device({ vocab: [vocab('Coffee', 'medication', { limit: 4, dailyLimit: 2 })] })
+    );
+    expect(next.vocab[0]).toMatchObject({ type: 'remedy', limit: null, dailyLimit: null });
   });
 });

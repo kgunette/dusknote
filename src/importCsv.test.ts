@@ -20,7 +20,7 @@ describe('recognizing a Preferences file', () => {
   it('reads Kind + Label as a Preferences file', () => {
     const p = prefs(`${PREF_HEADER}\nitem,Coffee,remedy,,,`);
     expect(p.items).toEqual([
-      { label: 'Coffee', type: 'remedy', limit: null, archived: false, watched: false },
+      { label: 'Coffee', type: 'remedy', limit: null, dailyLimit: null, archived: false, watched: false },
     ]);
   });
 
@@ -59,12 +59,12 @@ describe('reading what a Preferences file states', () => {
       ].join('\n')
     );
     expect(p.items).toEqual([
-      { label: 'Sumatriptan', type: 'medication', limit: 10, archived: false, watched: false },
-      { label: 'Rizatriptan', type: 'medication', limit: null, archived: true, watched: false },
-      { label: 'Poor sleep', type: 'factor', limit: null, archived: false, watched: true },
-      { label: 'Nausea', type: 'symptom', limit: null, archived: false, watched: false },
+      { label: 'Sumatriptan', type: 'medication', limit: 10, dailyLimit: null, archived: false, watched: false },
+      { label: 'Rizatriptan', type: 'medication', limit: null, dailyLimit: null, archived: true, watched: false },
+      { label: 'Poor sleep', type: 'factor', limit: null, dailyLimit: null, archived: false, watched: true },
+      { label: 'Nausea', type: 'symptom', limit: null, dailyLimit: null, archived: false, watched: false },
     ]);
-    expect(p.states).toEqual({ limit: true, archived: true, watched: true });
+    expect(p.states).toEqual({ limit: true, archived: true, watched: true, dailyLimit: false });
   });
 
   it('reads rating rows by level, and leaves unnamed levels unstated', () => {
@@ -94,7 +94,7 @@ describe('reading what a Preferences file states', () => {
 describe('a partial file states nothing it does not carry', () => {
   it('reports absent Limit, Archived and Watched columns as unstated', () => {
     const p = prefs(['Kind,Label,Type', 'item,Coffee,remedy', 'item,Poor sleep,factor'].join('\n'));
-    expect(p.states).toEqual({ limit: false, archived: false, watched: false });
+    expect(p.states).toEqual({ limit: false, archived: false, watched: false, dailyLimit: false });
   });
 
   it('leaves the rating words, the tracked word and the report name unstated', () => {
