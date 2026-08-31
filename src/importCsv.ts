@@ -13,8 +13,10 @@
 // from their content, so importing the same file twice stays a no-op (merge + dedup by id in
 // importBackfill).
 
-import type { Entry, Gap, MedEvent } from './types';
-import { parseTreatments, splitMulti } from './google/serialize';
+import type { ChipType, Entry, Gap, MedEvent } from './types';
+import { parseTreatments, readPreferenceRows, splitMulti } from './google/serialize';
+import { sanitizeLabel } from './vocab';
+import { normalizeNoun } from './config';
 
 const MAX_CHARS = 2_000_000; // ~2 MB of text; far beyond any real history
 const MAX_ROWS = 20_000;
@@ -36,10 +38,41 @@ const ENTRY_COLS = [
 ];
 const EVENT_COLS = ['Date', 'Note'];
 const GAP_COLS = ['Start', 'End', 'Reason'];
+const PREF_COLS = ['Kind', 'Label', 'Type', 'Limit', 'Archived', 'Watched'];
+const ITEM_TYPES: ChipType[] = ['symptom', 'medication', 'remedy', 'factor'];
+
+/** One Kind=item row, validated: it has a type, so it names an option the app can find. */
+export interface PrefItem {
+  label: string;
+  type: ChipType;
+  /** A whole number >= 1, or null for no limit. Meaningful only when `states.limit`. */
+  limit: number | null;
+  /** Meaningful only when `states.archived`. */
+  archived: boolean;
+  /** Meaningful only when `states.watched`. */
+  watched: boolean;
+}
+
+/** A validated Preferences file: what it states, and which settings it states at all. Anything
+ *  the file does not state is left off here, so applying it can leave the device's own setting
+ *  standing. Nothing in this shape has been compared to the device yet. */
+export interface PrefFile {
+  items: PrefItem[];
+  /** Which optional columns the file carries. An absent column states nothing for any option. */
+  states: { limit: boolean; archived: boolean; watched: boolean };
+  /** Five slots for ratings 1 through 5; null where the file names no word for that level. */
+  ratingWords: (string | null)[];
+  /** null when the file carries no setting row for it. */
+  conditionNoun: string | null;
+  patientName: string | null;
+}
 
 export interface ImportParse {
-  /** null when the file was rejected — nothing may be merged. */
-  data: { entries: Entry[]; events: MedEvent[]; gaps: Gap[] } | null;
+  /** null when the file was rejected — nothing may be merged or applied. */
+  data:
+    | { kind: 'records'; entries: Entry[]; events: MedEvent[]; gaps: Gap[] }
+    | { kind: 'preferences'; prefs: PrefFile }
+    | null;
   errors: string[];
 }
 
@@ -103,8 +136,12 @@ function hashId(seed: string): string {
 
 function detectKind(
   headers: string[]
-): { kind: 'entries' | 'events' | 'gaps'; unknown: string[] } | null {
+): { kind: 'entries' | 'events' | 'gaps' | 'preferences'; unknown: string[] } | null {
   const has = (h: string) => headers.includes(h);
+  // Preferences first: it is the one file that can change a setting you already have, and its
+  // columns share no name with the other three, so nothing else can be mistaken for it.
+  if (has('Kind') && has('Label'))
+    return { kind: 'preferences', unknown: headers.filter((h) => !PREF_COLS.includes(h)) };
   if (has('Date') && has('Note'))
     return { kind: 'events', unknown: headers.filter((h) => !EVENT_COLS.includes(h)) };
   if (has('Start') && has('End'))
@@ -130,16 +167,24 @@ export function parseImportCsv(text: string): ImportParse {
   if (!detected)
     return fail([
       'Row 1: these column headers don’t match any import type. Expected the columns of your ' +
-        'sheet’s Entries tab (Date, Start, Rating, …), Events tab (Date, Note), or Gaps tab ' +
-        '(Start, End, Reason).',
+        'sheet’s Entries tab (Date, Start, Rating, …), Events tab (Date, Note), Gaps tab ' +
+        '(Start, End, Reason), or Preferences tab (Kind, Label, Type, …).',
     ]);
   if (detected.unknown.length)
     return fail([
       `Row 1: unrecognized column${detected.unknown.length === 1 ? '' : 's'} ` +
         `${detected.unknown.map((h) => `“${h}”`).join(', ')} for ${
-          detected.kind === 'entries' ? 'an Entries' : detected.kind === 'events' ? 'an Events' : 'a Gaps'
+          detected.kind === 'entries'
+            ? 'an Entries'
+            : detected.kind === 'events'
+              ? 'an Events'
+              : detected.kind === 'gaps'
+                ? 'a Gaps'
+                : 'a Preferences'
         } file. Column names must match the sheet exactly.`,
     ]);
+
+  if (detected.kind === 'preferences') return parsePreferences(rows, headers, fail);
 
   const idx: Record<string, number> = {};
   headers.forEach((h, i) => (idx[h] = i));
@@ -250,5 +295,110 @@ export function parseImportCsv(text: string): ImportParse {
     shown.push('Nothing was imported. Fix the file and try again. Your AI assistant can help: paste this message.');
     return fail(shown);
   }
-  return { data: { entries, events, gaps }, errors: [] };
+  return { data: { kind: 'records', entries, events, gaps }, errors: [] };
+}
+
+/** Validate a Preferences table into a PrefFile. Same contract as the rest of this module: any
+ *  problem refuses the whole file and names the row, and nothing is compared to the device here.
+ *
+ *  Type is required on every option row, unlike Limit / Archived / Watched, which may be left
+ *  out. An option's identity in this app is its type plus its label, so a row with no type names
+ *  nothing the app can find, and a new option would have nowhere to go. */
+function parsePreferences(
+  rows: string[][],
+  headers: string[],
+  fail: (errors: string[]) => ImportParse
+): ImportParse {
+  if (!headers.includes('Type'))
+    return fail([
+      'Row 1: a Preferences file needs a Type column. It holds each option’s type (symptom, ' +
+        'medication, remedy, or factor), the level for a rating row, and the key for a setting row.',
+    ]);
+
+  const stated = readPreferenceRows(rows);
+  const errors: string[] = [];
+  const err = (row: number, col: string, msg: string) => errors.push(`Row ${row}, ${col}: ${msg}`);
+
+  const items: PrefItem[] = [];
+  const rowByKey = new Map<string, number>(); // type + folded label -> the row that claimed it
+  const treatmentRowByLabel = new Map<string, { row: number; type: ChipType }>();
+
+  for (const it of stated.items) {
+    const label = sanitizeLabel(it.label);
+    if (!label) {
+      err(it.row, 'Label', `“${it.label}” leaves no name once the characters the app can’t store are removed.`);
+      continue;
+    }
+    const typeRaw = (it.type ?? '').toLowerCase();
+    if (!typeRaw) {
+      err(it.row, 'Type', 'every option needs a type. Expected symptom, medication, remedy, or factor.');
+      continue;
+    }
+    if (!ITEM_TYPES.includes(typeRaw as ChipType)) {
+      err(it.row, 'Type', `expected symptom, medication, remedy, or factor, got “${it.type}”.`);
+      continue;
+    }
+    const type = typeRaw as ChipType;
+    const folded = label.toLowerCase();
+
+    const dupe = rowByKey.get(`${type}:${folded}`);
+    if (dupe != null) {
+      err(it.row, 'Label', `“${label}” is already listed as a ${type} on row ${dupe}. Each option can appear once.`);
+      continue;
+    }
+    // A medication and a remedy can’t share a name: entries store the bare treatment name, so
+    // nothing could tell the two apart afterwards. The app refuses this pairing, so a file
+    // holding both would apply into a state the app itself won’t allow.
+    if (type === 'medication' || type === 'remedy') {
+      const other = treatmentRowByLabel.get(folded);
+      if (other && other.type !== type) {
+        err(
+          it.row,
+          'Type',
+          `“${label}” is a ${type} here and a ${other.type} on row ${other.row}. A medication and a remedy can’t share a name.`
+        );
+        continue;
+      }
+      treatmentRowByLabel.set(folded, { row: it.row, type });
+    }
+    rowByKey.set(`${type}:${folded}`, it.row);
+    items.push({ label, type, limit: it.limit, archived: it.archived, watched: it.watched });
+  }
+
+  // Rating words: sanitized the same way a typed one is. A word that sanitizes away states nothing.
+  const ratingWords: (string | null)[] = stated.ratingWords.map((w) =>
+    w ? sanitizeLabel(w.value) || null : null
+  );
+
+  let conditionNoun: string | null = null;
+  if (stated.conditionNoun) {
+    const n = normalizeNoun(stated.conditionNoun.value);
+    if (!n)
+      err(
+        stated.conditionNoun.row,
+        'Label',
+        `“${stated.conditionNoun.value}” can’t be used as the word you track. Use letters, spaces or hyphens, up to 24 characters.`
+      );
+    else conditionNoun = n;
+  }
+
+  const patientName = stated.patientName ? sanitizeLabel(stated.patientName.value) || null : null;
+
+  if (errors.length) {
+    const shown = errors.slice(0, MAX_ERRORS_SHOWN);
+    if (errors.length > shown.length)
+      shown.push(
+        `…and ${errors.length - shown.length} more problem${errors.length - shown.length === 1 ? '' : 's'}.`
+      );
+    shown.push('Nothing was changed. Fix the file and try again. Your AI assistant can help: paste this message.');
+    return fail(shown);
+  }
+
+  return {
+    data: {
+      kind: 'preferences',
+      prefs: { items, states: stated.columns, ratingWords, conditionNoun, patientName },
+    },
+    errors: [],
+  };
 }

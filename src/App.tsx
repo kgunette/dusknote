@@ -12,6 +12,9 @@ import {
 import { activeChips, resolveAddItem, statsMeds, watchedFactors } from './vocab';
 import { setConditionNoun } from './config';
 import { LogOptionsScreen } from './screens/LogOptionsScreen';
+import { ImportReviewScreen } from './screens/ImportReviewScreen';
+import { planPrefsImport } from './importPrefs';
+import type { PrefFile } from './importCsv';
 import { TabBar, TAB_ORDER, type Tab } from './components/TabBar';
 import { EntryForm } from './components/EntryForm';
 import { ScreenFocus } from './components/ScreenFocus';
@@ -70,6 +73,10 @@ export default function App() {
   const [creatingEvent, setCreatingEvent] = useState(false); // a brand-new event ("Add an event")
   const [showReport, setShowReport] = useState(false); // the report builder, opened from Settings
   const [showLogOptions, setShowLogOptions] = useState(false); // the Log options manager, from Settings
+  // A picked Preferences file, waiting on the review screen. Holding it here changes nothing:
+  // the file is only read, and Cancel drops it.
+  const [prefsFile, setPrefsFile] = useState<{ prefs: PrefFile; name: string } | null>(null);
+  const [appliedNotice, setAppliedNotice] = useState<string | null>(null);
   const [showEvents, setShowEvents] = useState(() => localStorage.getItem('dn_show_events') !== '0');
   const [statsFilter, setStatsFilter] = useState<StatsFilter | null>(null); // #8: a Stats tap → filtered Log
   const [navDir, setNavDir] = useState<'fwd' | 'back'>('fwd'); // slide direction for the tab transition
@@ -105,6 +112,7 @@ export default function App() {
       closeForm();
       setShowReport(false);
       setShowLogOptions(false);
+      setPrefsFile(null);
       setStatsFilter(null);
       setTab(t);
     },
@@ -302,18 +310,40 @@ export default function App() {
 
   // Merge a backfill file (entries/events/gaps) into local, then refresh + let sync push it up.
   const importData = useCallback(
-    async (data: unknown) => {
-      const d = data as { entries?: Entry[]; events?: MedEvent[]; gaps?: Gap[] };
-      const res = await importBackfill({
-        entries: Array.isArray(d?.entries) ? d.entries : [],
-        events: Array.isArray(d?.events) ? d.events : [],
-        gaps: Array.isArray(d?.gaps) ? d.gaps : [],
-      });
+    async (data: { entries: Entry[]; events: MedEvent[]; gaps: Gap[] }) => {
+      const res = await importBackfill(data);
       await reload();
       return res;
     },
     [reload]
   );
+
+  // A Preferences file, worked out against what this device holds. One pass produces both the
+  // list the review screen shows and the result Apply writes, so the screen cannot promise one
+  // thing while the app does another. Nothing here writes: this runs on every render of the
+  // review screen and must stay free of side effects.
+  const prefsPlan = useMemo(
+    () =>
+      prefsFile
+        ? planPrefsImport(prefsFile.prefs, { vocab, ratingWords, conditionNoun, patientName })
+        : null,
+    [prefsFile, vocab, ratingWords, conditionNoun, patientName]
+  );
+
+  const applyPrefs = useCallback(() => {
+    if (!prefsPlan) return;
+    const { changes, next } = prefsPlan;
+    // Only write what actually changed: an identical rewrite would still churn the sync snapshot.
+    if (changes.changed.length || changes.added.length) updateVocab(next.vocab);
+    if (changes.ratings.length) updateRatingWords(next.ratingWords);
+    if (changes.noun) changeNoun(next.conditionNoun);
+    if (changes.name) changePatientName(next.patientName);
+    const backingUp = google.phase === 'ready' || google.phase === 'preparing';
+    setAppliedNotice(
+      `Changes applied. ${backingUp ? 'Backing up now.' : 'They will back up when you connect Google.'}`
+    );
+    setPrefsFile(null);
+  }, [prefsPlan, updateVocab, updateRatingWords, changeNoun, changePatientName, google.phase]);
 
   if (!entries) {
     return (
@@ -329,17 +359,19 @@ export default function App() {
   const eventFormOpen = editingEvent != null || creatingEvent;
   // Swipe navigation (Option A) is live only on a plain tab screen — never over a full-screen form,
   // the report, or the Log options manager.
-  const overlayOpen = entryFormOpen || eventFormOpen || showReport || showLogOptions;
+  const overlayOpen = entryFormOpen || eventFormOpen || showReport || showLogOptions || prefsPlan != null;
   // One key per distinct surface. Changing it is what tells ScreenFocus a navigation happened.
   const surfaceKey = entryFormOpen
     ? 'entry-form'
     : eventFormOpen
       ? 'event-form'
-      : showReport
-        ? 'report'
-        : showLogOptions
-          ? 'log-options'
-          : tab;
+      : prefsPlan
+        ? 'import-review'
+        : showReport
+          ? 'report'
+          : showLogOptions
+            ? 'log-options'
+            : tab;
 
   const onTouchStart = (e: React.TouchEvent) => {
     const t = e.touches[0];
@@ -408,6 +440,13 @@ export default function App() {
                 }
               : undefined
           }
+        />
+      ) : prefsPlan ? (
+        <ImportReviewScreen
+          changes={prefsPlan.changes}
+          fileName={prefsFile?.name ?? ''}
+          onApply={applyPrefs}
+          onCancel={() => setPrefsFile(null)}
         />
       ) : tab === 'log' ? (
         <FeedScreen
@@ -479,6 +518,11 @@ export default function App() {
             onPatientName={changePatientName}
             onGaps={updateGaps}
             onImport={importData}
+            onPrefsFile={(prefs, name) => {
+              setAppliedNotice(null);
+              setPrefsFile({ prefs, name });
+            }}
+            appliedNotice={appliedNotice}
             onOpenReport={() => setShowReport(true)}
             onOpenLogOptions={() => setShowLogOptions(true)}
           />

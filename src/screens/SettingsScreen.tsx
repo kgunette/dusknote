@@ -1,12 +1,12 @@
 import { useRef, useState } from 'react';
-import type { Gap } from '../types';
+import type { Entry, Gap, MedEvent } from '../types';
 import { fmtDateFull, fmtMonth, fmtRelativeTime, uid } from '../lib';
 import { AppMark } from '../components/AppMark';
 import { XCircleIcon } from '../components/icons';
 import { getBackupStatus } from '../google/backup';
 import { type GoogleSync } from '../google/useGoogleSync';
 import { APP_NAME, APP_VERSION, GOOGLE_CLIENT_ID, SITE_URL } from '../config';
-import { parseImportCsv } from '../importCsv';
+import { parseImportCsv, type PrefFile } from '../importCsv';
 
 // Injected at build time by vite.config.ts (the git short SHA). Shown in the footer so the
 // deployed version is verifiable: if it doesn't match the latest commit, the app is serving a
@@ -58,6 +58,8 @@ export function SettingsScreen({
   onPatientName,
   onGaps,
   onImport,
+  onPrefsFile,
+  appliedNotice,
   onOpenReport,
   onOpenLogOptions,
 }: {
@@ -72,7 +74,13 @@ export function SettingsScreen({
   patientName: string;
   onPatientName: (name: string) => void;
   onGaps: (g: Gap[]) => void;
-  onImport: (data: unknown) => Promise<ImportResult>;
+  onImport: (data: { entries: Entry[]; events: MedEvent[]; gaps: Gap[] }) => Promise<ImportResult>;
+  /** A Preferences file changes settings you already have, so it goes to the review screen
+   *  instead of being merged. Nothing has changed at this point. */
+  onPrefsFile: (prefs: PrefFile, fileName: string) => void;
+  /** Set after the review screen applies, so the confirmation lands where an import's own
+   *  message does. A new import's message takes over from it. */
+  appliedNotice: string | null;
   onOpenReport: () => void;
   onOpenLogOptions: () => void;
 }) {
@@ -103,6 +111,10 @@ export function SettingsScreen({
         // Whole-file reject: nothing merged. The message lists row-and-column problems,
         // written to be pasted back to an AI assistant (or found in a spreadsheet app).
         setImportMsg(parsed.errors.join('\n'));
+        return;
+      }
+      if (parsed.data.kind === 'preferences') {
+        onPrefsFile(parsed.data.prefs, file.name);
         return;
       }
       const r = await onImport(parsed.data);
@@ -619,7 +631,7 @@ export function SettingsScreen({
           >
             {importing ? 'Importing…' : 'Import CSV file'}
           </button>
-          {importMsg && (
+          {(importMsg ?? appliedNotice) && (
             // Arrives asynchronously, and on a rejected file it's a list of row-and-column
             // problems. Without a live region a screen reader never learns the import finished.
             <div
@@ -627,7 +639,7 @@ export function SettingsScreen({
               role="status"
               style={{ fontSize: '1rem', whiteSpace: 'pre-wrap' }}
             >
-              {importMsg}
+              {importMsg ?? appliedNotice}
             </div>
           )}
         </div>

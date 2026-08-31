@@ -122,12 +122,19 @@ export function resolveAddItem(
 }
 
 /**
- * Add an **archived** item for any label used in entries that the vocab doesn't already cover
- * (an orphan), so history stays consistent and the label is restorable. Orphan symptoms/factors
- * carry their field's type. A treatment attempt has no type, so it's an orphan only when the label
- * is unknown under BOTH treatment types (medication and remedy) — otherwise a logged remedy like
- * Coffee would be wrongly re-added as a medication. A truly-unknown treatment defaults to
- * medication (a one-off medication logged before it was ever added as an option lands here).
+ * Add an item for any label used in entries that the vocab doesn't already cover (an orphan), so
+ * history stays consistent and the label is usable again. Orphan symptoms/factors carry their
+ * field's type. A treatment attempt has no type, so it's an orphan only when the label is unknown
+ * under BOTH treatment types (medication and remedy), otherwise a logged remedy like Coffee would
+ * be wrongly re-added as a medication. A truly-unknown treatment defaults to medication (a one-off
+ * medication logged before it was ever added as an option lands here).
+ *
+ * Orphans arrive ACTIVE (Karen's call, 2026-08-24, from her own migration). They used to arrive
+ * archived, unconditionally, which hid a current daily medication in a drawer beside a one-off
+ * from two years ago while the Log screen showed the app's generic starters. The scan cannot tell
+ * a current treatment from a retired one; the person can, and archiving what they no longer use is
+ * one tap. A wrong guess is now visible instead of hidden, which is the point.
+ *
  * Returns a new list; never mutates input.
  */
 export function reconcileOrphans(vocab: VocabItem[], entries: Entry[]): VocabItem[] {
@@ -138,7 +145,7 @@ export function reconcileOrphans(vocab: VocabItem[], entries: Entry[]): VocabIte
     if (!l) return;
     const key = vocabKey(type, l);
     if (seen.has(key)) return;
-    out.push({ label: l, type, limit: null, archived: true });
+    out.push({ label: l, type, limit: null, archived: false });
     seen.add(key);
   };
   for (const e of entries) {
