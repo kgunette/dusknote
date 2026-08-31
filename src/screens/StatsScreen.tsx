@@ -398,11 +398,14 @@ function DataMonth({
           </div>
         )}
 
-        {/* One row per tracked medication's days. Over-limit reads as a one-line amber fraction
-            (12/10); under-limit is plain, no limit shown. Tappable when there's at least one day. */}
+        {/* One row per tracked medication's days. Over-limit reads as a one-line amber "12 of 10";
+            under-limit is plain, no limit shown. Tappable when there's at least one day.
+            "of" rather than a slash (Karen, 2026-08-31), matching the daily count in the log form:
+            one word per thing, and the log's word wins. A screen reader also says "12 of 10" here
+            instead of "12 slash 10". */}
         {m.medDays.map((d) => {
           const over = d.limit != null && d.days > d.limit;
-          const value = over ? `${d.days}/${d.limit}` : String(d.days);
+          const value = over ? `${d.days} of ${d.limit}` : String(d.days);
           const label = `${d.name} ${d.days === 1 ? 'day' : 'days'}`;
           if (d.days === 0) {
             return (
