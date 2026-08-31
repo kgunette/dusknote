@@ -85,9 +85,18 @@ export interface StatsFilter {
 export interface VocabItem {
   label: string;
   type: ChipType;
-  /** Only meaningful for medications; always null otherwise. A limit is also what makes a
-   *  medication show a dose row in Stats/Report (confirmed 2026-07-05): no limit = log-only. */
+  /** The MONTHLY limit: days used in a month, not doses. Only meaningful for medications; always
+   *  null otherwise. A monthly limit is also what makes a medication show a dose row in
+   *  Stats/Report (confirmed 2026-07-05): no monthly limit = log-only. Named `limit` rather than
+   *  `monthlyLimit` because it is the sheet's own `Limit` column, which older sheets and exports
+   *  carry under that name. */
   limit: number | null;
+  /** The DAILY limit: doses in one day. Only meaningful for medications; null for no daily limit.
+   *  Read while logging (the attempt card shows "2 of 2 today") and nowhere else: Stats and the
+   *  report ignore it, deliberately, and both limit captions say so. Added 2026-08-31 with its own
+   *  `DailyLimit` sheet column; a sheet or export written before that has no such column, which
+   *  states nothing and reads as null, so nothing older needs migrating. */
+  dailyLimit?: number | null;
   /** Archived items keep their history but never appear as a tap option when logging. */
   archived: boolean;
   /** Only meaningful for factors: a watched factor gets a with/without split of each month's

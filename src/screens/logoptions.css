@@ -176,6 +176,55 @@
      inputs; the type="text" attr also pulls in the shared input styling). */
   font-size: 1.125rem;
 }
+/* The medication mark in the add/edit sheet. A chip rather than the bare row icon, because an
+   icon with a word beside it does not read as a control. It carries the row's own pill glyph so
+   the two read as one thing. Muted when off, the app's accent when on, matching the pill. */
+.mgr-medchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  border: 1px solid var(--border-faint);
+  background: var(--card);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 9px 15px;
+  font-size: 1rem;
+  font-family: inherit;
+}
+.mgr-medchip.on {
+  background: var(--accent-tint);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* The two limits are CHECKBOXES, not chips: a category and two options in three identical chips
+   read as one undifferentiated set. These rules are the Report screen's own Include row
+   (.rc-opts / .rc-opt in report.css), repeated here because that stylesheet loads with the report
+   rather than with this screen. Keep them in step if either moves. */
+.mgr-limitopts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 22px;
+}
+.mgr-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.0625rem;
+  color: var(--text);
+  cursor: pointer;
+}
+.mgr-opt input {
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  accent-color: var(--accent);
+  padding: 0;
+  flex-shrink: 0;
+}
+
 .mgr-limit-field {
   display: flex;
   align-items: center;

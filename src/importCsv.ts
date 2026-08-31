@@ -45,8 +45,12 @@ const ITEM_TYPES: ChipType[] = ['symptom', 'medication', 'remedy', 'factor'];
 export interface PrefItem {
   label: string;
   type: ChipType;
-  /** A whole number >= 1, or null for no limit. Meaningful only when `states.limit`. */
+  /** The MONTHLY limit: a whole number >= 1, or null for none. Meaningful only when
+   *  `states.limit`. */
   limit: number | null;
+  /** The DAILY limit: a whole number >= 1, or null for none. Meaningful only when
+   *  `states.dailyLimit`; a file written before that column existed states nothing here. */
+  dailyLimit: number | null;
   /** Meaningful only when `states.archived`. */
   archived: boolean;
   /** Meaningful only when `states.watched`. */
@@ -59,7 +63,7 @@ export interface PrefItem {
 export interface PrefFile {
   items: PrefItem[];
   /** Which optional columns the file carries. An absent column states nothing for any option. */
-  states: { limit: boolean; archived: boolean; watched: boolean };
+  states: { limit: boolean; archived: boolean; watched: boolean; dailyLimit: boolean };
   /** Five slots for ratings 1 through 5; null where the file names no word for that level. */
   ratingWords: (string | null)[];
   /** null when the file carries no setting row for it. */
@@ -362,7 +366,14 @@ function parsePreferences(
       treatmentRowByLabel.set(folded, { row: it.row, type });
     }
     rowByKey.set(`${type}:${folded}`, it.row);
-    items.push({ label, type, limit: it.limit, archived: it.archived, watched: it.watched });
+    items.push({
+      label,
+      type,
+      limit: it.limit,
+      dailyLimit: it.dailyLimit,
+      archived: it.archived,
+      watched: it.watched,
+    });
   }
 
   // Rating words: sanitized the same way a typed one is. A word that sanitizes away states nothing.

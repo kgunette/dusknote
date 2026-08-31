@@ -9,7 +9,7 @@ import {
   renameLabelInEntries,
   tombstoneEntry,
 } from './db';
-import { activeChips, resolveAddItem, statsMeds, watchedFactors } from './vocab';
+import { activeChips, dailyLimits, resolveAddItem, statsMeds, watchedFactors } from './vocab';
 import { setConditionNoun } from './config';
 import { LogOptionsScreen } from './screens/LogOptionsScreen';
 import { ImportReviewScreen } from './screens/ImportReviewScreen';
@@ -58,6 +58,8 @@ export default function App() {
   const chips = useMemo(() => activeChips(vocab), [vocab]);
   // Stats/Report count only medications that carry a limit (a med with no limit is log-only).
   const medsForStats = useMemo(() => statsMeds(vocab), [vocab]);
+  // The log form's daily counts. Its own derivation, so the form never learns about VocabItem.
+  const dailyForLog = useMemo(() => dailyLimits(vocab), [vocab]);
   const watchedForStats = useMemo(() => watchedFactors(vocab), [vocab]);
   const [ratingWords, setRatingWords] = useState<string[]>([]); // editable 1–5 words
   // Personalization settings (4c): the noun lives in config's module value for render-time
@@ -218,19 +220,20 @@ export default function App() {
   );
 
   // Adding a tap option from the log form runs through the SAME resolver as the Log options
-  // manager (one set of collision rules for both surfaces). Deliberate, the
-  // form resolves silently: create/revive as needed; an existing active name needs no change; a
-  // med<->remedy clash reuses the existing same-named item (reviving it if it was archived) rather
-  // than creating a duplicate. No mid-log message — the form already selected the typed label.
+  // manager (one set of collision rules for both surfaces). The form resolves without a message:
+  // create or revive as needed, and an existing active name needs no change. Nothing interrupts
+  // the person mid-record, because the form has already selected the label they typed.
+  //
+  // It states NO fields (2026-08-31), so a revived treatment keeps its own mark and both of its
+  // limits. Typing the name of a medication you archived must never quietly turn it back into an
+  // unmarked treatment and drop the limits with it. Whether a treatment is a medication is decided
+  // in Log options, where the explanation lives.
   const addChip = useCallback(
     async (chip: ChipDef) => {
       const current = (await prefs.vocab()) ?? (await ensureVocab());
-      const res = resolveAddItem(current, chip.type, chip.label); // limit omitted: preserve on revive
+      const res = resolveAddItem(current, chip.type, chip.label);
       if (res.status === 'created' || res.status === 'revived') {
         await prefs.setVocab(res.vocab);
-        await reload();
-      } else if (res.status === 'clash' && res.conflict.archived) {
-        await prefs.setVocab(current.map((v) => (v === res.conflict ? { ...v, archived: false } : v)));
         await reload();
       }
     },
@@ -254,7 +257,14 @@ export default function App() {
   // item (or merges it into an existing same-type item, folding the two histories under one name).
   // The rewritten entries + new vocab both re-push on the next sync. reload picks up both.
   const renameVocabItem = useCallback(
-    async (item: VocabItem, newLabel: string, newLimit: number | null, mergeInto: VocabItem | null) => {
+    async (
+      item: VocabItem,
+      newLabel: string,
+      // What the sheet set besides the name: the medication mark and either limit. Widened from a
+      // bare limit (2026-08-31) so one save can carry a rename and a mark change together.
+      fields: Partial<VocabItem>,
+      mergeInto: VocabItem | null
+    ) => {
       const field = item.type === 'symptom' ? 'symptom' : item.type === 'factor' ? 'factor' : 'treatment';
       // On a MERGE the existing target's name wins — the typed text only pointed at it, so its
       // casing is ignored (otherwise "testing"→"dizziness" would recase the real "Dizziness" and
@@ -267,16 +277,14 @@ export default function App() {
             .map((v) =>
               v === mergeInto
                 ? {
-                    ...v, // keep the target's label AND its own limit as-is; the typed casing/limit
-                    // only described the item being merged AWAY, so it must not overwrite the target
-                    // (a silent limit change would drop the med from Stats/report counts).
+                    ...v, // keep the target's label, mark and limits as-is; what the sheet held
+                    // described the item being merged AWAY, so it must not overwrite the target
+                    // (changing its mark or limit would drop it from Stats and report counts).
                     archived: v.archived && item.archived, // active if either was active
                   }
                 : v
             )
-        : vocab.map((v) =>
-            v === item ? { ...v, label: newLabel, limit: v.type === 'medication' ? newLimit : v.limit } : v
-          );
+        : vocab.map((v) => (v === item ? { ...v, label: newLabel, ...fields } : v));
       await prefs.setVocab(next);
       await reload();
     },
@@ -408,6 +416,8 @@ export default function App() {
       <div className={'screen-slide ' + navDir} key={tab}>
         {entryFormOpen ? (
         <EntryForm
+          dailyLimits={dailyForLog}
+          entries={entries}
           key={editing ? editing.id + editing.updated_at : 'new'}
           existing={editing ?? undefined}
           chips={chips}

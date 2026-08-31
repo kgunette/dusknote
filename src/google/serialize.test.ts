@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isEmptySnapshot, parseTabs, type SyncSnapshot } from './serialize';
+import { buildTabs, isEmptySnapshot, parseTabs, type SyncSnapshot } from './serialize';
 import { RATING_WORDS } from '../seeds';
 import type { Entry } from '../types';
 
@@ -97,13 +97,78 @@ describe('parseTabs fills the pull path defaults', () => {
         ['item', 'Poor sleep', 'factor', '', '', 'watched'],
       ]),
     });
-    expect(s.vocab[0]).toEqual({ label: 'Sumatriptan', type: 'medication', limit: 10, archived: false, watched: false });
-    expect(s.vocab[1]).toEqual({ label: 'Hot shower', type: 'remedy', limit: null, archived: false, watched: false });
-    expect(s.vocab[2]).toEqual({ label: 'Poor sleep', type: 'factor', limit: null, archived: false, watched: true });
+    expect(s.vocab[0]).toEqual({ label: 'Sumatriptan', type: 'medication', limit: 10, dailyLimit: null, archived: false, watched: false });
+    expect(s.vocab[1]).toEqual({ label: 'Hot shower', type: 'remedy', limit: null, dailyLimit: null, archived: false, watched: false });
+    expect(s.vocab[2]).toEqual({ label: 'Poor sleep', type: 'factor', limit: null, dailyLimit: null, archived: false, watched: true });
   });
 
   it('reads an untyped item as a remedy, which only the pull path does', () => {
     const s = parseTabs({ Preferences: prefTab([['item', 'Something', '', '', '', '']]) });
     expect(s.vocab[0].type).toBe('remedy');
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// The daily limit (v8, 2026-08-31). It gets its own column and needs no migration of its own:
+// a sheet written before v8 has no such column, which states nothing and reads as null.
+// ---------------------------------------------------------------------------------------------
+
+describe('the daily limit column', () => {
+  /** Round-trip a snapshot through the writer and back, the way a real backup and pull would. */
+  const roundTrip = (s: SyncSnapshot): SyncSnapshot => {
+    const tabs = buildTabs(s);
+    const byTitle: Record<string, string[][]> = {};
+    for (const t of tabs) byTitle[t.title] = t.values;
+    return parseTabs(byTitle);
+  };
+
+  it('carries a medication with both limits out to the sheet and back unchanged', () => {
+    const out = roundTrip({
+      ...emptySnapshot,
+      vocab: [
+        { label: 'Sumatriptan', type: 'medication', limit: 10, dailyLimit: 2, archived: false },
+      ],
+      ratingWords: [...RATING_WORDS],
+    });
+    expect(out.vocab[0]).toMatchObject({ label: 'Sumatriptan', limit: 10, dailyLimit: 2 });
+  });
+
+  it('writes the column into the header, so a person reading the sheet can see it', () => {
+    const prefs = buildTabs(emptySnapshot).find((t) => t.title === 'Preferences');
+    expect(prefs?.values[0]).toContain('DailyLimit');
+  });
+
+  it('keeps a daily limit off anything that is not a medication', () => {
+    const out = roundTrip({
+      ...emptySnapshot,
+      vocab: [{ label: 'Hot shower', type: 'remedy', limit: null, dailyLimit: 3, archived: false }],
+      ratingWords: [...RATING_WORDS],
+    });
+    expect(out.vocab[0].dailyLimit).toBeNull();
+  });
+
+  it('reads a sheet written BEFORE this column existed, which is why nobody has to do anything', () => {
+    // A pre-v8 Preferences tab: six columns, no DailyLimit. Every sheet in the world is one of
+    // these until its device next backs up. The absent column states nothing, so it reads as null
+    // and the monthly limit is untouched.
+    const s = parseTabs({
+      Preferences: [
+        ['Kind', 'Label', 'Type', 'Limit', 'Archived', 'Watched'],
+        ['item', 'Sumatriptan', 'medication', '10', '', ''],
+      ],
+    });
+    expect(s.vocab[0]).toMatchObject({ label: 'Sumatriptan', limit: 10, dailyLimit: null });
+  });
+
+  it('ignores a daily limit that is not a whole number of at least one', () => {
+    const s = parseTabs({
+      Preferences: [
+        ['Kind', 'Label', 'Type', 'Limit', 'Archived', 'Watched', 'DailyLimit'],
+        ['item', 'Ibuprofen', 'medication', '', '', '', 'lots'],
+        ['item', 'Naproxen', 'medication', '', '', '', '0'],
+      ],
+    });
+    expect(s.vocab[0].dailyLimit).toBeNull();
+    expect(s.vocab[1].dailyLimit).toBeNull();
   });
 });

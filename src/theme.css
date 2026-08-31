@@ -1441,6 +1441,24 @@ input.inp-error {
   font-size: 1.0625rem;
   color: var(--text);
 }
+
+/* The daily dose count, on the last attempt card of a treatment that carries a daily limit.
+   Amber only ABOVE the limit, never at it: Stats turns a month amber when days used are GREATER
+   than the limit, and two of two is exactly the number you chose. */
+.dose-count {
+  font-size: 0.875rem;
+  color: var(--muted);
+  /* Never break the count across lines. The mockup drew the time beside it as plain text, but the
+     real control is a 160px time input (it has to fit "12:07 PM" plus Chrome's clock glyph), so at
+     phone width the name and count share a cramped column. Without this it wrapped as
+     "Ibuprofen 3" / "of 2 today", splitting the number off the thing it counts. Found by measuring
+     the running app, not the mockup. */
+  white-space: nowrap;
+}
+.dose-count.over {
+  color: var(--warn);
+  font-weight: 700;
+}
 input.attempt-time {
   /* Wide enough for "12:07 PM" plus Chrome's clock glyph. iOS renders the value compactly
      and never clipped; desktop and Android Chrome draw text + icon and overflowed at 132px. */

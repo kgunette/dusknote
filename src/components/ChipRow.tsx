@@ -4,22 +4,23 @@ import { Chip } from './Chip';
 
 /**
  * A wrapping row of multi-select pill chips ending in "+ add".
- * For the treatments row, a new chip also asks medication-or-remedy
- * (the distinction drives the medication-days stat).
+ *
+ * The treatments row used to stop and ask medication-or-remedy before it would add anything.
+ * That went 2026-08-31, with the two categories: a new treatment is added and selected, and
+ * whether it is a medication is decided in Log options, where the explanation lives. Nothing
+ * interrupts a person in the middle of recording something to ask a filing question.
  */
 export function ChipRow({
   options,
   selected,
   onToggle,
   onAdd,
-  askTreatmentType,
   includeArchivedSelected,
 }: {
   options: string[];
   selected: string[];
   onToggle: (label: string) => void;
-  onAdd: (label: string, type?: 'medication' | 'remedy') => void;
-  askTreatmentType?: boolean;
+  onAdd: (label: string) => void;
   /** Show a value that's on the entry but no longer an active option (archived) as a removable,
    *  "archived"-tagged pill, so it isn't stuck. Used by the symptom/factor rows (treatments carry
    *  their own remove on the attempt card, so they don't need this). */
@@ -27,7 +28,6 @@ export function ChipRow({
 }) {
   const [adding, setAdding] = useState(false);
   const [text, setText] = useState('');
-  const [pending, setPending] = useState<string | null>(null);
 
   function commitText() {
     const label = cap(text.trim());
@@ -43,17 +43,7 @@ export function ChipRow({
       setAdding(false);
       return;
     }
-    if (askTreatmentType) {
-      setPending(label);
-    } else {
-      onAdd(label);
-      setAdding(false);
-    }
-  }
-
-  function commitPending(type: 'medication' | 'remedy') {
-    if (pending) onAdd(pending, type);
-    setPending(null);
+    onAdd(label);
     setAdding(false);
   }
 
@@ -77,7 +67,7 @@ export function ChipRow({
         {archivedSelected.map((label) => (
           <Chip key={label} label={label} selected archived onTap={() => onToggle(label)} />
         ))}
-        {adding && !pending ? (
+        {adding ? (
           <input
             className="chip-input"
             type="text"
@@ -95,22 +85,15 @@ export function ChipRow({
               }
             }}
           />
-        ) : !pending ? (
+        ) : (
           <button type="button" className="chip chip-add" onClick={() => setAdding(true)}>
             <span className="chip-face">+ add</span>
             <span className="chip-ghost" aria-hidden="true">
               + add
             </span>
           </button>
-        ) : null}
+        )}
       </div>
-      {pending && (
-        <div className="helped-row">
-          <span className="helped-label">{pending}: medication or remedy?</span>
-          <Chip label="medication" small selected={false} onTap={() => commitPending('medication')} />
-          <Chip label="remedy" small selected={false} onTap={() => commitPending('remedy')} />
-        </div>
-      )}
     </div>
   );
 }

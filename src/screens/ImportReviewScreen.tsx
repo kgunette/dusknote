@@ -35,8 +35,14 @@ function ExternalLinkIcon() {
   );
 }
 
+// Both limits say their own unit and their own period, because there are two of them now and
+// "no limit" on its own would not say which. Singular is handled: a limit of 1 is a real setting.
 function limitWord(n: number | null): string {
-  return n == null ? 'no limit' : `${n} days a month`;
+  return n == null ? 'no monthly limit' : `${n} day${n === 1 ? '' : 's'} a month`;
+}
+
+function dailyLimitWord(n: number | null): string {
+  return n == null ? 'no daily limit' : `${n} dose${n === 1 ? '' : 's'} a day`;
 }
 
 /** One change, worded. The screen shows the old value and the new one, never just the new one. */
@@ -46,6 +52,8 @@ function moveWords(c: ItemChange): { from: string; to: string } {
       return { from: c.from, to: c.to };
     case 'limit':
       return { from: limitWord(c.from), to: limitWord(c.to) };
+    case 'dailyLimit':
+      return { from: dailyLimitWord(c.from), to: dailyLimitWord(c.to) };
     case 'archived':
       return { from: c.from ? 'archived' : 'active', to: c.to ? 'archived' : 'active' };
     case 'watched':

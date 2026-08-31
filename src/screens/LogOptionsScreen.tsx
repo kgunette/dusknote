@@ -1,7 +1,14 @@
 import { useMemo, useState } from 'react';
 import './logoptions.css';
 import type { ChipType, Entry, VocabItem } from '../types';
-import { byLabelAsc, resolveAddItem, sanitizeLabel, vocabKey } from '../vocab';
+import {
+  byLabelAsc,
+  isTreatmentType,
+  resolveAddItem,
+  sanitizeLabel,
+  setMedicationMark,
+  vocabKey,
+} from '../vocab';
 import { XCircleIcon } from '../components/icons';
 import { ModalOverlay } from '../components/ModalOverlay';
 import { aNoun, normalizeNoun, noRatingLabel, noun } from '../config';
@@ -12,27 +19,39 @@ import { aNoun, normalizeNoun, noRatingLabel, noun } from '../config';
 
 // A function, not a const: the factor explainer embeds the condition noun, which can change
 // at runtime (Log options → What you track), so the strings must build per render.
-const GROUPS = (): { kind: ChipType; title: string; add: string; explainer?: string }[] => [
-  { kind: 'symptom', title: 'Symptoms', add: 'Add symptom' },
+//
+// TREATMENTS ARE ONE GROUP (2026-08-31). A medication is a subset of the things you try, not a
+// sibling of them, so a group can span more than one stored type: `kinds` is what it shows and
+// `addType` is what a new one starts as. The Medications and Remedies groups, with two explainers,
+// two add buttons and two archived drawers, are gone. "Treatments" needs no definition; the old
+// explainers existed only to separate medication from remedy.
+interface Group {
+  key: string;
+  kinds: ChipType[];
+  title: string;
+  add: string;
+  addType: ChipType;
+  explainer?: string;
+}
+
+const GROUPS = (): Group[] => [
+  { key: 'symptom', kinds: ['symptom'], title: 'Symptoms', add: 'Add symptom', addType: 'symptom' },
   {
-    kind: 'medication',
-    title: 'Medications',
-    add: 'Add medication',
-    explainer:
-      'Medications (drugs) you take. Only a medication can have a monthly limit, which is what ' +
-      'counts it in Stats and Reports. A limit counts the days you used it, not doses: two ' +
-      'doses on one day is one day.',
+    key: 'treatment',
+    kinds: ['medication', 'remedy'],
+    title: 'Treatments',
+    add: 'Add treatment',
+    // A new treatment starts UNMARKED, the way a factor starts unwatched. The chip in the sheet
+    // is how it becomes a medication.
+    addType: 'remedy',
+    explainer: 'Tap the pill to mark a medication. Only a medication can have a daily or monthly limit.',
   },
   {
-    kind: 'remedy',
-    title: 'Remedies',
-    add: 'Add remedy',
-    explainer: 'Non-drug things you do, like coffee or a hot shower. Never counted in Stats or Reports.',
-  },
-  {
-    kind: 'factor',
+    key: 'factor',
+    kinds: ['factor'],
     title: 'Other factors',
     add: 'Add factor',
+    addType: 'factor',
     explainer:
       `Things that may have an impact on ${noun()}s, like sleep, weather, or travel. ` +
       'Watch a factor (the eye icon) and your Stats will reflect the split each month of days ' +
@@ -44,12 +63,55 @@ const GROUPS = (): { kind: ChipType; title: string; add: string; explainer?: str
 type Confirm =
   | { action: 'archive'; item: VocabItem }
   | { action: 'delete'; item: VocabItem }
-  | { action: 'merge'; item: VocabItem; target: VocabItem; newLabel: string; newLimit: number | null };
+  | { action: 'unmark'; item: VocabItem }
+  | { action: 'merge'; item: VocabItem; target: VocabItem; newLabel: string; fields: Partial<VocabItem> };
+
+/** What the add/edit sheet is holding. The limits are CHECKBOXES rather than always-present
+ *  fields: two fields with two explanations is four blocks of text sitting there before you have
+ *  said you want either one. A checked box brings its field, and unchecking puts it away. */
+interface TreatmentFields {
+  /** The Medication chip. Only a marked treatment can carry a limit. */
+  medication: boolean;
+  hasLimit: boolean;
+  limit: string;
+  hasDaily: boolean;
+  dailyLimit: string;
+}
+
 type Editor =
-  | { mode: 'add'; type: ChipType; name: string; limit: string; error: string | null }
-  | { mode: 'edit'; item: VocabItem; name: string; limit: string; error: string | null }
+  | ({ mode: 'add'; group: Group; name: string; error: string | null } & TreatmentFields)
+  | ({ mode: 'edit'; item: VocabItem; name: string; error: string | null } & TreatmentFields)
   | { mode: 'rating'; level: number; name: string; error: string | null }
   | { mode: 'noun'; name: string; error: string | null };
+
+/** The stored type an add/edit sheet would save. For a treatment the Medication chip decides it;
+ *  every other group has one type and keeps it. */
+function editorType(ed: Extract<Editor, { mode: 'add' | 'edit' }>): ChipType {
+  const base = ed.mode === 'add' ? ed.group.addType : ed.item.type;
+  if (!isTreatmentType(base)) return base;
+  return ed.medication ? 'medication' : 'remedy';
+}
+
+/** The blank treatment fields an add sheet opens with: nothing marked, no limits, nothing shown. */
+const NO_FIELDS: TreatmentFields = {
+  medication: false,
+  hasLimit: false,
+  limit: '',
+  hasDaily: false,
+  dailyLimit: '',
+};
+
+/** The fields an edit sheet opens with. Editing something that already carries a limit opens with
+ *  that box checked and its field showing, rather than hiding a setting you already made. */
+function fieldsFor(item: VocabItem): TreatmentFields {
+  return {
+    medication: item.type === 'medication',
+    hasLimit: item.limit != null,
+    limit: item.limit?.toString() ?? '',
+    hasDaily: item.dailyLimit != null,
+    dailyLimit: item.dailyLimit?.toString() ?? '',
+  };
+}
 
 /** A blank string, or a whole number >= 1, becomes a limit; anything else is "no limit" (null). */
 function parseLimit(s: string): number | null {
@@ -61,15 +123,20 @@ function entriesWord(n: number): string {
   return `${n} ${n === 1 ? 'entry' : 'entries'}`;
 }
 
-/** The caption under an item: its usage (distinct entries), a med's limit, a factor's watch. */
-function subText(item: VocabItem, count: number): string {
+/** The caption under an item, in up to two lines. The limits get their own line (Karen,
+ *  2026-08-30): a medication carrying both reads "2 a day · 10 days/mo" with "55 entries"
+ *  underneath, rather than three facts wrapping wherever the width happens to run out. A treatment
+ *  with no limits stays on one line, and so does everything else. */
+function subText(item: VocabItem, count: number): { limits: string | null; used: string } {
   const used = count === 0 ? 'never used' : entriesWord(count);
-  if (item.type === 'medication' && count > 0) {
-    const lim = item.limit != null ? `Limit ${item.limit} days/mo` : 'No limit';
-    return `${lim} · ${used}`;
+  if (item.type === 'medication') {
+    const parts: string[] = [];
+    if (item.dailyLimit != null) parts.push(`${item.dailyLimit} a day`);
+    if (item.limit != null) parts.push(`${item.limit} days/mo`);
+    if (parts.length) return { limits: parts.join(' · '), used };
   }
-  if (item.type === 'factor' && item.watched) return `Watching · ${used}`;
-  return used;
+  if (item.type === 'factor' && item.watched) return { limits: null, used: `Watching · ${used}` };
+  return { limits: null, used };
 }
 
 export function LogOptionsScreen({
@@ -89,7 +156,12 @@ export function LogOptionsScreen({
   conditionNoun: string;
   onNounChange: (n: string) => void;
   onVocabChange: (v: VocabItem[]) => void;
-  onRename: (item: VocabItem, newLabel: string, newLimit: number | null, mergeInto: VocabItem | null) => void;
+  onRename: (
+    item: VocabItem,
+    newLabel: string,
+    fields: Partial<VocabItem>,
+    mergeInto: VocabItem | null
+  ) => void;
   onRatingWordsChange: (words: string[]) => void;
   onClose: () => void;
 }) {
@@ -121,24 +193,37 @@ export function LogOptionsScreen({
     if (!confirm) return;
     if (confirm.action === 'archive') patch(confirm.item, { archived: true });
     else if (confirm.action === 'delete') onVocabChange(vocab.filter((v) => v !== confirm.item));
-    else onRename(confirm.item, confirm.newLabel, confirm.newLimit, confirm.target);
+    else if (confirm.action === 'unmark') onVocabChange(setMedicationMark(vocab, confirm.item, false));
+    else onRename(confirm.item, confirm.newLabel, confirm.fields, confirm.target);
     setConfirm(null);
   }
 
-  // A rename can collide two ways. `merge` = a same-type item already has this name (rename folds
-  // the two histories together). `clash` = the OTHER treatment kind already has this name; since
-  // entries store bare treatment names, a med and a remedy can't share one, so this is blocked.
-  function analyzeName(item: VocabItem, name: string): { merge: VocabItem | null; clash: VocabItem | null } {
+  /** Tapping the pill on a row. Marking is immediate; unmarking asks first, but ONLY when there is
+   *  a limit to lose, because that is the one direction with a consequence. The edit sheet warns
+   *  about the same thing in the same words. */
+  function togglePill(item: VocabItem) {
+    if (item.type === 'medication') {
+      if (item.limit != null || item.dailyLimit != null) {
+        setConfirm({ action: 'unmark', item });
+        return;
+      }
+      onVocabChange(setMedicationMark(vocab, item, false));
+      return;
+    }
+    onVocabChange(setMedicationMark(vocab, item, true));
+  }
+
+  /** A rename can collide one way now: `merge` = another option of the same identity already has
+   *  this name, so the rename folds the two histories together. Treatments are ONE namespace, so a
+   *  treatment collides with any other treatment whichever way each is marked. The old `clash`
+   *  (a medication and a remedy cannot share a name, blocked) is gone with the two categories. */
+  function analyzeName(item: VocabItem, name: string): VocabItem | null {
     const t = name.trim().toLowerCase();
-    const isTreatment = item.type === 'medication' || item.type === 'remedy';
-    let merge: VocabItem | null = null;
-    let clash: VocabItem | null = null;
     for (const v of vocab) {
       if (v === item || v.label.trim().toLowerCase() !== t) continue;
-      if (v.type === item.type) merge = v;
-      else if (isTreatment && (v.type === 'medication' || v.type === 'remedy')) clash = v;
+      if (isTreatmentType(item.type) ? isTreatmentType(v.type) : v.type === item.type) return v;
     }
-    return { merge, clash };
+    return null;
   }
 
   function saveEditor() {
@@ -166,44 +251,51 @@ export function LogOptionsScreen({
       return;
     }
 
+    // What the sheet would save besides the name: the mark, and each limit only when its box is
+    // checked AND the thing is marked a medication. Unchecking a box is how you remove a limit.
+    const type = editorType(editor);
+    const isMed = type === 'medication';
+    const fields: Partial<VocabItem> = {
+      type,
+      limit: isMed && editor.hasLimit ? parseLimit(editor.limit) : null,
+      dailyLimit: isMed && editor.hasDaily ? parseLimit(editor.dailyLimit) : null,
+    };
+
     if (editor.mode === 'edit') {
       const name = sanitizeLabel(editor.name); // strip reserved delimiters before the rename rewrites entries
       if (!name) {
         setEditor({ ...editor, error: 'Enter a name.' });
         return;
       }
-      const { merge, clash } = analyzeName(editor.item, name);
-      if (clash) return; // blocked; the inline amber note already explains why
-      const limit = editor.item.type === 'medication' ? parseLimit(editor.limit) : null;
+      const merge = analyzeName(editor.item, name);
       const renamed = name !== editor.item.label;
       if (!renamed) {
-        if (editor.item.type === 'medication') patch(editor.item, { limit }); // limit-only edit
+        patch(editor.item, fields); // mark and limits, without touching any entry
         setEditor(null);
         return;
       }
       if (merge) {
         // A merge folds two histories together and drops an item — get an explicit yes first.
-        setConfirm({ action: 'merge', item: editor.item, target: merge, newLabel: name, newLimit: limit });
+        setConfirm({ action: 'merge', item: editor.item, target: merge, newLabel: name, fields });
         setEditor(null);
         return;
       }
-      onRename(editor.item, name, limit, null);
+      onRename(editor.item, name, fields, null);
       setEditor(null);
       return;
     }
 
-    // add — the manager surfaces the collision messages; the shared resolver holds the rules.
+    // add — the manager surfaces the collision message; the shared resolver holds the rules.
     const label = sanitizeLabel(editor.name); // matches resolveAddItem's own sanitize; catches an all-delimiter input as empty
     if (!label) {
       setEditor({ ...editor, error: 'Enter a name.' });
       return;
     }
-    const limit = editor.type === 'medication' ? parseLimit(editor.limit) : null;
-    const res = resolveAddItem(vocab, editor.type, label, limit);
-    if (res.status === 'clash') {
-      setEditor({ ...editor, error: `There’s already a ${res.conflict.type} called “${res.conflict.label}”. Give it a different name.` });
-      return;
-    }
+    const res = resolveAddItem(vocab, type, label, {
+      type,
+      limit: fields.limit,
+      dailyLimit: fields.dailyLimit,
+    });
     if (res.status === 'exists') {
       setEditor({ ...editor, error: 'That’s already an option.' });
       return;
@@ -212,24 +304,35 @@ export function LogOptionsScreen({
     setEditor(null);
   }
 
-  // The amber heads-up shown while editing a name, before Save. Merge and clash take priority
-  // over the plain "this rewrites N entries" note.
+  /** What "unmarking drops the limits" says in the one place it can happen without you noticing:
+   *  the edit sheet, where you turned the chip off and have not saved yet. Names what would
+   *  actually go, rather than always claiming both. Row taps ask the same thing in a confirm box. */
+  function unmarkNote(ed: Extract<Editor, { mode: 'edit' }>) {
+    if (ed.item.type !== 'medication' || ed.medication) return null;
+    const had: string[] = [];
+    if (ed.item.dailyLimit != null) had.push('daily');
+    if (ed.item.limit != null) had.push('monthly');
+    if (!had.length) return null;
+    const what = had.length === 2 ? 'both limits' : `its ${had[0]} limit`;
+    return (
+      <div className="mgr-warn">
+        Saving without marking {ed.item.label} a medication drops {what}.
+      </div>
+    );
+  }
+
+  /** The amber heads-up shown while editing a NAME, before Save. A merge takes priority over the
+   *  plain "this rewrites N entries" note. */
   function renameNote(ed: Extract<Editor, { mode: 'edit' }>) {
     const nm = ed.name.trim();
     if (nm === '' || nm === ed.item.label) return null;
-    const { merge, clash } = analyzeName(ed.item, nm);
-    if (clash) {
-      return (
-        <div className="mgr-warn">
-          There’s already a {clash.type} called “{clash.label}”. Pick another name.
-        </div>
-      );
-    }
+    const merge = analyzeName(ed.item, nm);
     if (merge) {
       return (
         <div className="mgr-warn">
-          There’s already a {ed.item.type} called “{merge.label}”. Saving merges “{ed.item.label}”
-          into “{merge.label}”, keeping that name. You’ll confirm first.
+          There’s already {isTreatmentType(ed.item.type) ? 'a treatment' : `a ${ed.item.type}`}{' '}
+          called “{merge.label}”. Saving merges “{ed.item.label}” into “{merge.label}”, keeping that
+          name. You’ll confirm first.
         </div>
       );
     }
@@ -244,12 +347,36 @@ export function LogOptionsScreen({
 
   function renderRow(item: VocabItem) {
     const count = countFor(item);
+    const { limits, used } = subText(item, count);
+    const isMed = item.type === 'medication';
     return (
       <div className="mgr-row" key={vocabKey(item.type, item.label)}>
         <div className="mgr-rowmain">
           <div className="mgr-lbl">{item.label}</div>
-          <div className="mgr-sub">{subText(item, count)}</div>
+          <div className="mgr-sub">
+            {limits && (
+              <>
+                {limits}
+                <br />
+              </>
+            )}
+            {used}
+          </div>
         </div>
+        {isTreatmentType(item.type) && (
+          // The pill follows the eye on a factor exactly: an icon button on the row, muted when
+          // off and in the app's accent when on, named in the group's explainer.
+          <button
+            type="button"
+            className="mgr-ic"
+            aria-pressed={isMed}
+            aria-label={`${isMed ? 'Unmark' : 'Mark'} ${item.label} as a medication`}
+            style={isMed ? { color: 'var(--accent)' } : undefined}
+            onClick={() => togglePill(item)}
+          >
+            <PillIcon />
+          </button>
+        )}
         {item.type === 'factor' && (
           <button
             type="button"
@@ -266,9 +393,7 @@ export function LogOptionsScreen({
           type="button"
           className="mgr-ic"
           aria-label={`Rename ${item.label}`}
-          onClick={() =>
-            setEditor({ mode: 'edit', item, name: item.label, limit: item.limit?.toString() ?? '', error: null })
-          }
+          onClick={() => setEditor({ mode: 'edit', item, name: item.label, ...fieldsFor(item), error: null })}
         >
           <PencilIcon />
         </button>
@@ -363,11 +488,14 @@ export function LogOptionsScreen({
         </div>
 
         {GROUPS().map((group) => {
-          const active = vocab.filter((v) => v.type === group.kind && !v.archived).sort(byLabelAsc);
-          const archived = vocab.filter((v) => v.type === group.kind && v.archived).sort(byLabelAsc);
-          const drawerOpen = !!openDrawers[group.kind];
+          // A group can span more than one stored type: Treatments shows the medications and the
+          // unmarked ones together, one alphabetical list, because that is what they are.
+          const inGroup = (v: VocabItem) => group.kinds.includes(v.type);
+          const active = vocab.filter((v) => inGroup(v) && !v.archived).sort(byLabelAsc);
+          const archived = vocab.filter((v) => inGroup(v) && v.archived).sort(byLabelAsc);
+          const drawerOpen = !!openDrawers[group.key];
           return (
-            <div className="mgr-sec" key={group.kind}>
+            <div className="mgr-sec" key={group.key}>
               <div className="mgr-grp">{group.title}</div>
               {group.explainer && <div className="mgr-expl">{group.explainer}</div>}
               {active.length > 0 && <div className="mgr-card">{active.map(renderRow)}</div>}
@@ -377,7 +505,7 @@ export function LogOptionsScreen({
                   <button
                     type="button"
                     className={'mgr-drawer' + (drawerOpen ? ' open' : '')}
-                    onClick={() => setOpenDrawers((d) => ({ ...d, [group.kind]: !d[group.kind] }))}
+                    onClick={() => setOpenDrawers((d) => ({ ...d, [group.key]: !d[group.key] }))}
                   >
                     <ChevronDownIcon /> Archived ({archived.length})
                   </button>
@@ -406,7 +534,7 @@ export function LogOptionsScreen({
               <button
                 type="button"
                 className="mgr-add"
-                onClick={() => setEditor({ mode: 'add', type: group.kind, name: '', limit: '', error: null })}
+                onClick={() => setEditor({ mode: 'add', group, name: '', ...NO_FIELDS, error: null })}
               >
                 <PlusIcon /> {group.add}
               </button>
@@ -423,14 +551,31 @@ export function LogOptionsScreen({
               ? `Archive ${c.item.label}?`
               : c.action === 'delete'
                 ? `Delete ${c.item.label}?`
-                : `Merge ${c.item.label} into ${c.target.label}?`;
+                : c.action === 'unmark'
+                  ? `Unmark ${c.item.label} as a medication?`
+                  : `Merge ${c.item.label} into ${c.target.label}?`;
+          const unmarkLoses = (() => {
+            const had: string[] = [];
+            if (c.action === 'unmark' && c.item.dailyLimit != null) had.push('daily');
+            if (c.action === 'unmark' && c.item.limit != null) had.push('monthly');
+            return had.length === 2 ? 'both limits' : `its ${had[0]} limit`;
+          })();
           const b =
             c.action === 'archive'
               ? 'It won’t appear as an option when you log, but your past entries keep it. You can restore it anytime from the Archived list.'
               : c.action === 'delete'
                 ? 'It’s not used in any entries, so nothing is lost.'
-                : `“${c.item.label}” (${entriesWord(countFor(c.item))}) and “${c.target.label}” (${entriesWord(countFor(c.target))}) become one, named “${c.target.label}”. Entries logged as “${c.item.label}” will read “${c.target.label}”.${c.target.type === 'medication' ? (c.target.limit != null ? ` The kept medication’s monthly limit of ${c.target.limit} stays.` : ` The kept medication has no monthly limit.`) : ''} This can’t be undone.`;
-          const btn = c.action === 'archive' ? 'Archive' : c.action === 'delete' ? 'Delete' : 'Merge';
+                : c.action === 'unmark'
+                  ? `Only a medication can have a limit, so this drops ${unmarkLoses}. Your entries are untouched.`
+                  : `“${c.item.label}” (${entriesWord(countFor(c.item))}) and “${c.target.label}” (${entriesWord(countFor(c.target))}) become one, named “${c.target.label}”. Entries logged as “${c.item.label}” will read “${c.target.label}”.${c.target.type === 'medication' ? (c.target.limit != null ? ` The kept medication’s monthly limit of ${c.target.limit} stays.` : ` The kept medication has no monthly limit.`) : ''} This can’t be undone.`;
+          const btn =
+            c.action === 'archive'
+              ? 'Archive'
+              : c.action === 'delete'
+                ? 'Delete'
+                : c.action === 'unmark'
+                  ? 'Unmark'
+                  : 'Merge';
           return (
             <ModalOverlay labelId="confirm-q" onDismiss={() => setConfirm(null)}>
               <div className="confirm-q" id="confirm-q">{q}</div>
@@ -451,12 +596,12 @@ export function LogOptionsScreen({
         <ModalOverlay labelId="editor-q" onDismiss={() => setEditor(null)}>
             <div className="confirm-q" id="editor-q">
               {editor.mode === 'add'
-                ? `Add ${editor.type}`
+                ? `Add ${editor.group.addType === 'remedy' ? 'treatment' : editor.group.addType}`
                 : editor.mode === 'rating'
                   ? `Rating ${editor.level}`
                   : editor.mode === 'noun'
                     ? 'What you track'
-                    : `Edit ${editor.item.type}`}
+                    : `Edit ${isTreatmentType(editor.item.type) ? 'treatment' : editor.item.type}`}
             </div>
             <input
               type="text"
@@ -466,26 +611,103 @@ export function LogOptionsScreen({
               value={editor.name}
               onChange={(e) => setEditor({ ...editor, name: e.target.value, error: null })}
             />
-            {(editor.mode === 'add' && editor.type === 'medication') ||
-            (editor.mode === 'edit' && editor.item.type === 'medication') ? (
-              <>
-                <label className="mgr-limit-field">
-                  <span>Monthly limit</span>
-                  <input
-                    type="number"
-                    min={1}
-                    placeholder="None"
-                    value={editor.limit}
-                    onChange={(e) => setEditor({ ...editor, limit: e.target.value })}
-                    style={{ width: 80 }}
-                  />
-                </label>
-                <div className="confirm-b">
-                  A monthly limit is what counts this medication in Stats and Reports, and flags
-                  months you go over. Leave it blank to keep it a log-only option.
-                </div>
-              </>
-            ) : null}
+            {(editor.mode === 'add' || editor.mode === 'edit') &&
+              isTreatmentType(editor.mode === 'add' ? editor.group.addType : editor.item.type) && (
+                <>
+                  {/* The mark is a CHIP, the same control you tap when logging and the twin of the
+                      pill on the row: it says what this treatment IS. The limits below are
+                      checkboxes, because they say what you want counted. Three chips in a row,
+                      one a category and two options, read as one undifferentiated set. */}
+                  <div className="mgr-chiprow">
+                    <button
+                      type="button"
+                      className={'mgr-medchip' + (editor.medication ? ' on' : '')}
+                      aria-pressed={editor.medication}
+                      onClick={() =>
+                        setEditor({
+                          ...editor,
+                          medication: !editor.medication,
+                          // Unmarking puts the limit boxes and their fields away; marking again
+                          // brings back whatever was typed, so a mis-tap costs nothing. The typed
+                          // numbers are kept either way, and re-checking follows them: without
+                          // this, tapping the chip twice dropped the limits with the amber note
+                          // gone too, so nothing on screen said they had been lost.
+                          ...(editor.medication
+                            ? { hasLimit: false, hasDaily: false }
+                            : {
+                                hasLimit: editor.limit.trim() !== '',
+                                hasDaily: editor.dailyLimit.trim() !== '',
+                              }),
+                        })
+                      }
+                    >
+                      <PillIcon size={18} />
+                      Medication
+                    </button>
+                  </div>
+
+                  {editor.medication && (
+                    <div className="mgr-limitopts">
+                      <label className="mgr-opt">
+                        <input
+                          type="checkbox"
+                          checked={editor.hasDaily}
+                          onChange={(e) => setEditor({ ...editor, hasDaily: e.target.checked })}
+                        />
+                        Daily limit
+                      </label>
+                      <label className="mgr-opt">
+                        <input
+                          type="checkbox"
+                          checked={editor.hasLimit}
+                          onChange={(e) => setEditor({ ...editor, hasLimit: e.target.checked })}
+                        />
+                        Monthly limit
+                      </label>
+                    </div>
+                  )}
+
+                  {/* Nothing is shown before it is asked for. A checked box brings its field and
+                      its one line of explanation. The two captions differ in unit AND in place,
+                      doses against days and while you log against on review, because drafted as
+                      parallel sentences they read as one thing said twice. */}
+                  {editor.medication && editor.hasDaily && (
+                    <>
+                      <label className="mgr-limit-field">
+                        <span>Daily limit</span>
+                        <input
+                          type="number"
+                          min={1}
+                          placeholder="None"
+                          value={editor.dailyLimit}
+                          onChange={(e) => setEditor({ ...editor, dailyLimit: e.target.value })}
+                          style={{ width: 80 }}
+                        />
+                      </label>
+                      <div className="confirm-b">Doses in one day. The count shows while you log.</div>
+                    </>
+                  )}
+                  {editor.medication && editor.hasLimit && (
+                    <>
+                      <label className="mgr-limit-field">
+                        <span>Monthly limit</span>
+                        <input
+                          type="number"
+                          min={1}
+                          placeholder="None"
+                          value={editor.limit}
+                          onChange={(e) => setEditor({ ...editor, limit: e.target.value })}
+                          style={{ width: 80 }}
+                        />
+                      </label>
+                      <div className="confirm-b">
+                        Days used in a month, not doses. The count shows in Stats and your report.
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            {editor.mode === 'edit' && unmarkNote(editor)}
             {editor.mode === 'edit' && renameNote(editor)}
             {editor.error && <div className="mgr-error" role="alert">{editor.error}</div>}
             <div className="mgr-modal-actions">
@@ -524,6 +746,17 @@ function ChevronDownIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
+/** The medication mark, drawn exactly as the signed-off mockup draws it: a horizontal capsule with
+ *  its divider, on the same 24-box, stroke and caps as the eye it stands beside on a row. */
+function PillIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="2.5" y="8.5" width="19" height="7" rx="3.5" />
+      <path d="M12 8.5v7" />
     </svg>
   );
 }
