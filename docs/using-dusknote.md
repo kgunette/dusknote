@@ -14,7 +14,7 @@ The rating runs 0 to 5, answering "How bad, at its worst?" It is important to un
 The things you can tap while logging help you track a variety of things:
 
 - **Symptoms**: what you felt.
-- **Treatments**: what you did about it, split into **medications** (drugs) and **remedies** (non-drug things, like coffee or a hot shower). Only a medication can carry a monthly limit, and every treatment can take an outcome ("Did it help?").
+- **Treatments**: what you did about it, which could be anything from a medication to taking a rest. Mark an item as a medication and it can carry a limit. Every treatment can record an outcome ("Did it help?").
 - **Other factors**: the circumstances around the day, like poor sleep, weather, or travel. Factors are the things you'd like to capture that may be correlated with your episodes.
 - **Notes**: anything else, in your own words.
 
@@ -27,7 +27,7 @@ Everything you log is saved. Your log shows all of your notes, and so does the t
 - **Episode days and episode entries** are always counted.
 - **A medication** starts counting once you give it a monthly limit. It counts days used, not doses, and shows a flag when you go over that limit.
 - **A factor** starts counting once you tap its eye icon: each month splits into days with it and days without.
-- **Everything else is log-only.** If a count you expect isn't there, check that the medication has a limit, or that the factor's eye is on.
+- **Everything else is log-only.** If a count you expect isn't there, check that the medication has a monthly limit, or that the factor's eye is on.
 
 **What helped comes from the outcomes you've recorded.**
 
@@ -42,7 +42,7 @@ Stats summarizes your history month by month. Each month gets a card: a calendar
 
 The calendar shows one cell per day. A shaded cell is a day you rated, and the brighter the color, the worse the day. An outlined cell is an episode you logged without a rating. A hatched cell falls inside a coverage gap. A blank cell means nothing was recorded. The Calendar Key at the top of the tab describes this all visually.
 
-Under the calendar are your counts: episode days, episode entries, your ratings broken out by level, and a row for each medication that has a limit. A day that you logged three times is one episode day and three episode entries. A medication that went past its limit shows as a fraction in amber.
+Under the calendar are your counts: episode days, episode entries, your ratings broken out by level, and a row for each medication that has a monthly limit. A day that you logged three times is one episode day and three episode entries. A medication that went past its monthly limit reads "12 of 10" in amber.
 
 Months you weren't tracking don't get a card. They collapse into a single line saying so, because missing data is never counted as zero.
 
@@ -71,13 +71,27 @@ Watch as many factors as you like. Watching never changes your entries, only wha
 
 One behavior to know, that might feel like a bug, but is intentional: in a month with zero days matching a watched factor, the split doesn't appear on Stats or in the report's month lines. In the report's summary table, where each watched factor has its own column, that month shows a 0.
 
-## Medication limits
+## Marking a medication
 
-A limit counts the days you used a medication, not doses. Two doses on one day is one day.
+There is a list of treatments. Tap the pill next to one in Log options to mark it a medication.
 
-Doctors often focus on days used. A limit really asks "am I reaching for this too often?", and clinical thresholds for "too often" are written in days per month, so the app counts the number most often used by the medical community.
+Marking as a medication allows it to carry a daily and/or monthly limit, and a monthly limit will also be reflected in your Stats and your report.
 
-Setting a limit is also what makes a medication count at all: it appears in Stats and the report from then on, and a month that goes over its limit is flagged. A medication without a limit stays log-only ("What gets counted," above, is the full story).
+You must mark a treatment as a medication manually, similar to how you watch a factor. When Dusknote rebuilds your option list from your history, every treatment arrives unmarked: it's reading words out of your entries and can't tell a drug from a nap.
+
+Unmarking a treatment as a medication drops any limits associated with it, and the app will confirm your decision to unmark first.
+
+## Two kinds of medication limits
+
+A medication can have either no limit, a daily limit, a monthly limit, or both daily and monthly limits.
+
+A monthly limit counts days used, not doses. Two doses on one day is counted as one day. It addresses the question, "am I reaching for this too often?", and clinical thresholds are often assessed in days of use per month. Setting one counts a medication, and ensures that the count appears in Stats and the report. A month that goes over reads "12 of 10" in amber. A medication without a monthly limit stays log-only.
+
+A daily limit counts doses in one day. It appears in an active log entry as you edit it, on the treatment's card, as "2 of 2 today". The count covers your whole day, so a dose from an earlier entry still counts. It's the same "too often" question in the moment, for the day.
+
+A daily limit is not reflected on your Stats or your report. It's there to be read while you're deciding whether to take another dose.
+
+Neither limit stops you from logging the medication at the limit and past it.
 
 ## What helped
 
@@ -129,19 +143,25 @@ None of this applies when you get a new phone, which is fully supported. Install
 
 ## Import basics
 
-The import format is your live sheet's own columns: an import file looks exactly like your Dusknote data already does, and you can read and fix it in any spreadsheet app.
+The import format is your live sheet's columns: an import file looks exactly like your Dusknote data already does, and you can read and fix it in Google Sheets or a text editor.
 
-Dusknote only accepts CSV files in that exact format. The [import guide](import-guide.md) has blank templates you can fill in yourself, and a conversion prompt for turning another app's export or a journal into the right format with an AI assistant. Either way, you end up with a finalized CSV file: you check it, then import it.
+There are two kinds of import file: your entries, events and gaps are history, and your log options are active settings.
 
-Validation is strict: a file with any problem imports nothing, and errors name their row and column ("Row 14, Date: expected a date like 2026-03-05"). A rejected file touches nothing, so a bad file can never reach your phone or overwrite your sheet.
+History is only ever added to. A row already in your data is recognized and skipped, so importing the same file twice is safe and nothing you have is replaced.
 
-Importing the same file twice is safe: rows already in your data are recognized and skipped.
+Log options can be changed by a file import, and the app will show you what will change first, and require a confirmation. An option in the file you don't have already in the app is added. An option in both takes the file's settings. An option you have that the file never mentions is left alone.
+
+The import screen will list every change the file would make: options added, options corrected ("Coffee: medication → treatment"), rating words changing, and the word you track changing. You can review, and clicking Cancel will make sure the changes are not applied. Clicking Apply will confirm and save the import.
+
+Dusknote only accepts CSV files. The [import guide](import-guide.md) has blank templates you can fill in yourself, and a conversion prompt for turning another app's export or a journal into the right format with an AI assistant. When you have a finalized CSV file, you check it (in Google Sheets or a text editor), then import it.
+
+Validation is strict: a file with any problem imports nothing, and errors will specify their row and column ("Row 14, Date: expected a date like 2026-03-05"). A rejected file will not import, so a file with errors will never impact your data.
 
 ## Why some things work the way they do
 
 **Why the rating scale is fixed.** The five words are yours to rename, but the 0 to 5 scale is locked, and 0 always means "no episode." Ratings only stay comparable across years if the scale never changes, and every count in the app depends on the difference between 0 and everything above it.
 
-**Why there are no warning colors.** Dusknote assumes it may be used on a hard day: dark, low glare, nothing blinking. Going over a medication limit shows as an amber fraction, not a red warning.
+**Why there are no warning colors.** Dusknote assumes it may be used on a hard day: dark, low glare, nothing blinking. Going over a monthly limit shows in amber, not as a red warning.
 
 **Why the app carries its own security rules.** The rules that protect the app are built into the app itself, not just set by the hosting service, so every copy keeps them no matter where it's deployed. That matters because your Google sign-in is stored in your browser, and these rules block outside code from reading it.
 

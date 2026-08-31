@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   dailyLimits,
+  migrateVocabTypes,
   dosesOnDate,
   reconcileOrphans,
   resolveAddItem,
@@ -46,26 +47,26 @@ describe('reconcileOrphans', () => {
   });
 
   it('leaves a label it already knows alone', () => {
-    const mine = vocab('Coffee', 'remedy');
+    const mine = vocab('Coffee', 'treatment');
     const out = reconcileOrphans([mine], [entry({ treatments: [{ id: 'a', time: '', treatment: 'Coffee', helped: null }] })]);
     expect(out).toEqual([mine]);
   });
 
-  it('does not re-add a known remedy as a medication', () => {
+  it('does not re-add a treatment it already knows', () => {
     const out = reconcileOrphans(
-      [vocab('Coffee', 'remedy')],
+      [vocab('Coffee', 'treatment')],
       [entry({ treatments: [{ id: 'a', time: '', treatment: 'Coffee', helped: null }] })]
     );
     expect(out).toHaveLength(1);
-    expect(out[0].type).toBe('remedy');
+    expect(out[0].type).toBe('treatment');
+    expect(out[0].medication).toBeFalsy();
   });
 
   it('adds a treatment it has never seen UNMARKED, rather than calling it a drug', () => {
     const out = reconcileOrphans([], [entry({ treatments: [{ id: 'a', time: '', treatment: 'Naproxen', helped: null }] })]);
-    // 'remedy' is the stored word for an unmarked treatment. The scan reads words out of history
-    // and cannot tell a drug from a hot shower, so it no longer asserts one. Marking is a person's
-    // job, the way watching a factor is.
-    expect(out[0]).toEqual({ label: 'Naproxen', type: 'remedy', limit: null, archived: false });
+    // The scan reads words out of history and cannot tell a drug from a hot shower, so it no
+    // longer asserts one. Marking is a person's job, the way watching a factor is.
+    expect(out[0]).toEqual({ label: 'Naproxen', type: 'treatment', limit: null, archived: false });
   });
 });
 
@@ -80,24 +81,24 @@ describe('what still gets counted', () => {
   // built from statsMeds. If marking a medication ever stopped producing type 'medication', a real
   // medication would drop out of both while every other screen looked completely fine.
   it('keeps counting a marked medication that carries a monthly limit', () => {
-    const v = [vocab('Sumatriptan', 'medication', { limit: 10 })];
+    const v = [vocab('Sumatriptan', 'treatment', { medication: true, limit: 10 })];
     expect(statsMeds(v)).toEqual([{ name: 'Sumatriptan', limit: 10 }]);
   });
 
   it('counts an unmarked treatment nowhere, however it was added', () => {
-    expect(statsMeds([vocab('Hot shower', 'remedy')])).toEqual([]);
+    expect(statsMeds([vocab('Hot shower', 'treatment')])).toEqual([]);
   });
 
   it('does NOT count a medication whose only limit is a daily one', () => {
     // Deliberate for this tier: the daily limit is read while you log and nowhere else. Both limit
     // captions say where each number shows up, so this is the documented behaviour, not an
     // oversight.
-    const v = [vocab('Ibuprofen', 'medication', { dailyLimit: 3 })];
+    const v = [vocab('Ibuprofen', 'treatment', { medication: true, dailyLimit: 3 })];
     expect(statsMeds(v)).toEqual([]);
   });
 
   it('still ignores an archived medication', () => {
-    expect(statsMeds([vocab('Rizatriptan', 'medication', { limit: 5, archived: true })])).toEqual([]);
+    expect(statsMeds([vocab('Rizatriptan', 'treatment', { medication: true, limit: 5, archived: true })])).toEqual([]);
   });
 });
 
@@ -105,32 +106,32 @@ describe('one treatments list: adding', () => {
   it('finds an existing treatment whatever its mark, instead of refusing the name', () => {
     // This is the trap that is gone. Adding "Coffee" when Coffee is already a marked medication
     // used to be a clash you could not resolve, because the type had no control and an in-use
-    // option cannot be deleted.
-    const v = [vocab('Coffee', 'medication')];
-    const res = resolveAddItem(v, 'remedy', 'Coffee');
+    // option cannot be deleted. With one treatment type there is one Coffee.
+    const v = [vocab('Coffee', 'treatment', { medication: true })];
+    const res = resolveAddItem(v, 'treatment', 'Coffee');
     expect(res.status).toBe('exists');
   });
 
   it('reviving from the log form keeps the mark and both limits', () => {
     // The log form states no fields, so an archived medication comes back as itself. Quietly
     // stripping the mark and the limits here would be data loss with nothing on screen.
-    const archived = vocab('Sumatriptan', 'medication', { limit: 10, dailyLimit: 2, archived: true });
-    const res = resolveAddItem([archived], 'remedy', 'Sumatriptan');
+    const archived = vocab('Sumatriptan', 'treatment', { medication: true, limit: 10, dailyLimit: 2, archived: true });
+    const res = resolveAddItem([archived], 'treatment', 'Sumatriptan');
     expect(res.status).toBe('revived');
     if (res.status !== 'revived') return;
-    expect(res.item).toMatchObject({ type: 'medication', limit: 10, dailyLimit: 2, archived: false });
+    expect(res.item).toMatchObject({ medication: true, limit: 10, dailyLimit: 2, archived: false });
   });
 
   it('reviving from the add sheet applies what the form stated', () => {
-    const archived = vocab('Coffee', 'medication', { limit: 4, archived: true });
-    const res = resolveAddItem([archived], 'remedy', 'Coffee', {
-      type: 'remedy',
+    const archived = vocab('Coffee', 'treatment', { medication: true, limit: 4, archived: true });
+    const res = resolveAddItem([archived], 'treatment', 'Coffee', {
+      medication: false,
       limit: null,
       dailyLimit: null,
     });
     expect(res.status).toBe('revived');
     if (res.status !== 'revived') return;
-    expect(res.item).toMatchObject({ type: 'remedy', limit: null, dailyLimit: null, archived: false });
+    expect(res.item).toMatchObject({ medication: false, limit: null, dailyLimit: null, archived: false });
   });
 
   it('keeps symptoms and factors in their own namespaces', () => {
@@ -141,19 +142,19 @@ describe('one treatments list: adding', () => {
 
 describe('marking and unmarking', () => {
   it('unmarking drops both limits, which is what the amber note warns about', () => {
-    const med = vocab('Sumatriptan', 'medication', { limit: 10, dailyLimit: 2 });
+    const med = vocab('Sumatriptan', 'treatment', { medication: true, limit: 10, dailyLimit: 2 });
     const out = setMedicationMark([med], med, false);
-    expect(out[0]).toMatchObject({ type: 'remedy', limit: null, dailyLimit: null });
+    expect(out[0]).toMatchObject({ medication: false, limit: null, dailyLimit: null });
   });
 
   it('marking leaves the rest of the item alone', () => {
-    const treat = vocab('Coffee', 'remedy');
+    const treat = vocab('Coffee', 'treatment');
     const out = setMedicationMark([treat], treat, true);
-    expect(out[0]).toMatchObject({ label: 'Coffee', type: 'medication', archived: false });
+    expect(out[0]).toMatchObject({ label: 'Coffee', type: 'treatment', medication: true, archived: false });
   });
 
   it('never mutates the list it was given', () => {
-    const med = vocab('Sumatriptan', 'medication', { limit: 10 });
+    const med = vocab('Sumatriptan', 'treatment', { medication: true, limit: 10 });
     const input = [med];
     setMedicationMark(input, med, false);
     expect(input[0].limit).toBe(10);
@@ -189,16 +190,65 @@ describe('the daily dose count', () => {
 
 describe('the daily limits the log form reads', () => {
   it('gives a marked medication its daily limit, keyed so case never matters', () => {
-    const m = dailyLimits([vocab('Sumatriptan', 'medication', { dailyLimit: 2 })]);
+    const m = dailyLimits([vocab('Sumatriptan', 'treatment', { medication: true, dailyLimit: 2 })]);
     expect(m.get('sumatriptan')).toBe(2);
   });
 
   it('leaves out an unmarked treatment, an archived one, and one with no daily limit', () => {
     const m = dailyLimits([
-      vocab('Coffee', 'remedy', { dailyLimit: 3 }),
-      vocab('Rizatriptan', 'medication', { dailyLimit: 2, archived: true }),
-      vocab('Ibuprofen', 'medication', { limit: 10 }),
+      vocab('Coffee', 'treatment', { dailyLimit: 3 }),
+      vocab('Rizatriptan', 'treatment', { medication: true, dailyLimit: 2, archived: true }),
+      vocab('Ibuprofen', 'treatment', { medication: true, limit: 10 }),
     ]);
     expect(m.size).toBe(0);
+  });
+});
+
+// The on-device half of retiring the two type words. Without this a phone that is already set up
+// loses every treatment off its screens, because it reads its own storage and never pulls.
+describe('migrating a stored option list', () => {
+  it('marks a stored medication and keeps its limits', () => {
+    const out = migrateVocabTypes([
+      { label: 'Sumatriptan', type: 'medication' as never, limit: 10, dailyLimit: 2, archived: false },
+    ]);
+    expect(out?.[0]).toEqual({
+      label: 'Sumatriptan',
+      type: 'treatment',
+      medication: true,
+      limit: 10,
+      dailyLimit: 2,
+      archived: false,
+    });
+  });
+
+  it('leaves a stored remedy unmarked, and drops a limit it should never have had', () => {
+    const out = migrateVocabTypes([
+      { label: 'Coffee', type: 'remedy' as never, limit: 4, archived: false },
+    ]);
+    expect(out?.[0]).toMatchObject({ type: 'treatment', medication: false, limit: null });
+  });
+
+  it('does not touch symptoms or factors', () => {
+    const out = migrateVocabTypes([
+      { label: 'Nausea', type: 'symptom', limit: null, archived: false },
+      { label: 'Poor sleep', type: 'medication' as never, limit: null, archived: false },
+    ]);
+    expect(out?.[0]).toMatchObject({ label: 'Nausea', type: 'symptom' });
+  });
+
+  it('reports nothing to do for a list already on the current model, so nothing re-persists', () => {
+    expect(
+      migrateVocabTypes([
+        { label: 'Coffee', type: 'treatment', medication: false, limit: null, archived: false },
+      ])
+    ).toBeNull();
+  });
+
+  it('is idempotent: converting twice changes nothing the second time', () => {
+    const once = migrateVocabTypes([
+      { label: 'Sumatriptan', type: 'medication' as never, limit: 10, archived: false },
+    ]);
+    expect(once).not.toBeNull();
+    expect(migrateVocabTypes(once!)).toBeNull();
   });
 });

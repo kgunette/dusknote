@@ -19,12 +19,13 @@ import type { PrefFile, PrefItem } from './importCsv';
 
 /** The Log options screen's own group order, so the review reads in the same sequence as the
  *  screen a person would go and check afterwards. */
-const TYPE_ORDER: ChipType[] = ['symptom', 'medication', 'remedy', 'factor'];
+const TYPE_ORDER: ChipType[] = ['symptom', 'treatment', 'factor'];
 
 /** One difference on an option the person already has. One row on the review screen each: the
  *  risk is each individual change, so an option that changes twice says so twice. */
 export type ItemChange =
   | { label: string; type: ChipType; field: 'type'; from: ChipType; to: ChipType }
+  | { label: string; type: ChipType; field: 'medication'; from: boolean; to: boolean }
   | { label: string; type: ChipType; field: 'limit'; from: number | null; to: number | null }
   | { label: string; type: ChipType; field: 'dailyLimit'; from: number | null; to: number | null }
   | { label: string; type: ChipType; field: 'archived'; from: boolean; to: boolean }
@@ -67,17 +68,21 @@ export function isEmptyChanges(c: PrefChanges): boolean {
  *  the file states are taken from it; the rest are the option's own, untouched. */
 function resolve(existing: VocabItem, file: PrefItem, states: PrefFile['states']) {
   const type = file.type;
+  // The mark follows the same rule as every other setting: a file that states it overwrites, a
+  // file that says nothing leaves the device's own answer standing. `null` is "does not say".
+  const medication =
+    type === 'treatment' ? (file.medication ?? !!existing.medication) : undefined;
   return {
     type,
-    // A limit belongs to a medication and nothing else, so a type change away from medication
-    // takes BOTH limits with it. That is not a separate decision to approve.
-    limit: type === 'medication' ? (states.limit ? file.limit : (existing.limit ?? null)) : null,
-    dailyLimit:
-      type === 'medication'
-        ? states.dailyLimit
-          ? file.dailyLimit
-          : (existing.dailyLimit ?? null)
-        : null,
+    medication,
+    // A limit belongs to a medication and nothing else, so unmarking one, or changing it into a
+    // symptom, takes BOTH limits with it. That is not a separate decision to approve.
+    limit: medication ? (states.limit ? file.limit : (existing.limit ?? null)) : null,
+    dailyLimit: medication
+      ? states.dailyLimit
+        ? file.dailyLimit
+        : (existing.dailyLimit ?? null)
+      : null,
     archived: states.archived ? file.archived : existing.archived,
     // Watching belongs to a factor the same way.
     watched: type === 'factor' ? (states.watched ? file.watched : !!existing.watched) : false,
@@ -107,11 +112,7 @@ export interface PrefPlan {
 
 export function planPrefsImport(file: PrefFile, device: DeviceState): PrefPlan {
   const byKey = new Map<string, VocabItem>();
-  const treatmentByLabel = new Map<string, VocabItem>();
-  for (const v of device.vocab) {
-    byKey.set(`${v.type}:${fold(v.label)}`, v);
-    if (v.type === 'medication' || v.type === 'remedy') treatmentByLabel.set(fold(v.label), v);
-  }
+  for (const v of device.vocab) byKey.set(`${v.type}:${fold(v.label)}`, v);
 
   const changed: ItemChange[] = [];
   const added: NewItem[] = [];
@@ -124,11 +125,8 @@ export function planPrefsImport(file: PrefFile, device: DeviceState): PrefPlan {
   };
 
   for (const item of file.items) {
-    const existing =
-      byKey.get(`${item.type}:${fold(item.label)}`) ??
-      (item.type === 'medication' || item.type === 'remedy'
-        ? treatmentByLabel.get(fold(item.label))
-        : undefined);
+    // One treatment type, so the plain key finds it whichever way either side is marked.
+    const existing = byKey.get(`${item.type}:${fold(item.label)}`);
 
     if (!existing) {
       const archived = file.states.archived ? item.archived : false;
@@ -136,9 +134,9 @@ export function planPrefsImport(file: PrefFile, device: DeviceState): PrefPlan {
       nextVocab.push({
         label: item.label,
         type: item.type,
-        limit: item.type === 'medication' && file.states.limit ? item.limit : null,
-        dailyLimit:
-          item.type === 'medication' && file.states.dailyLimit ? item.dailyLimit : null,
+        medication: item.type === 'treatment' ? !!item.medication : undefined,
+        limit: item.medication && file.states.limit ? item.limit : null,
+        dailyLimit: item.medication && file.states.dailyLimit ? item.dailyLimit : null,
         archived,
         watched: item.type === 'factor' && file.states.watched ? item.watched : false,
       });
@@ -150,11 +148,21 @@ export function planPrefsImport(file: PrefFile, device: DeviceState): PrefPlan {
     const type = next.type;
     if (existing.type !== next.type)
       changed.push({ label, type, field: 'type', from: existing.type, to: next.type });
-    // Only a medication can carry a limit, and only a factor can be watched, so when a type
-    // change is what takes one away it is part of that change rather than its own row.
-    if (type === 'medication' && (existing.limit ?? null) !== next.limit)
+    // The mark is its own row: it is the change a person most needs to see, and it is the one the
+    // whole review screen was built for.
+    if (!!existing.medication !== !!next.medication)
+      changed.push({
+        label,
+        type,
+        field: 'medication',
+        from: !!existing.medication,
+        to: !!next.medication,
+      });
+    // Only a medication can carry a limit, and only a factor can be watched, so when unmarking is
+    // what takes one away it is part of that change rather than its own row.
+    if (next.medication && (existing.limit ?? null) !== next.limit)
       changed.push({ label, type, field: 'limit', from: existing.limit ?? null, to: next.limit });
-    if (type === 'medication' && (existing.dailyLimit ?? null) !== next.dailyLimit)
+    if (next.medication && (existing.dailyLimit ?? null) !== next.dailyLimit)
       changed.push({
         label,
         type,

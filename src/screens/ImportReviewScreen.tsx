@@ -50,6 +50,11 @@ function moveWords(c: ItemChange): { from: string; to: string } {
   switch (c.field) {
     case 'type':
       return { from: c.from, to: c.to };
+    // The mark, and the row this whole screen was built for: seeing "Coffee · medication →
+    // treatment" is instantly obviously right to the person, because they know what coffee is.
+    // The app never could.
+    case 'medication':
+      return { from: c.from ? 'medication' : 'treatment', to: c.to ? 'medication' : 'treatment' };
     case 'limit':
       return { from: limitWord(c.from), to: limitWord(c.to) };
     case 'dailyLimit':
@@ -77,7 +82,7 @@ function newItemWords(n: NewItem): string {
   return n.archived ? `${n.type} · archived` : n.type;
 }
 
-const isTreatment = (t: ChipType) => t === 'medication' || t === 'remedy';
+const isTreatment = (t: ChipType) => t === 'treatment';
 
 export function ImportReviewScreen({
   changes,
@@ -117,15 +122,15 @@ export function ImportReviewScreen({
   }
 
   // The medication note goes under the LAST options card on screen, against the labels it
-  // explains, and only when a medication or a remedy is actually in the list.
+  // explains, and only when a treatment is actually in the list.
   const noteOnAdded = changes.added.some((n) => isTreatment(n.type));
   const noteOnChanged =
     !changes.added.length && changes.changed.some((c) => isTreatment(c.type));
   const note = (
     <div className="chg-note">
-      A medication can be counted in Stats and your report. A remedy never is.{' '}
+      A medication can be counted in Stats and your report. An unmarked treatment never is.{' '}
       <a
-        href={docUrl('using-dusknote.md', '#medication-limits')}
+        href={docUrl('using-dusknote.md', '#two-kinds-of-medication-limits')}
         target="_blank"
         rel="noreferrer"
       >

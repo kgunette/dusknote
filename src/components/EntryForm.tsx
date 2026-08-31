@@ -108,7 +108,7 @@ export function EntryForm({
     JSON.stringify({ date, startTime, rating, symptoms, attempts, factors, notes }) !==
     initialSnapshot;
 
-  const treatmentChips = chips.filter((c) => c.type === 'medication' || c.type === 'remedy');
+  const treatmentChips = chips.filter((c) => c.type === 'treatment');
   const factorChips = chips.filter((c) => c.type === 'factor');
   const symptomChips = chips.filter((c) => c.type === 'symptom');
 
@@ -260,7 +260,7 @@ export function EntryForm({
             onAdd={(label) => {
               // Unmarked, the way a factor arrives unwatched. Marking it a medication is done in
               // Log options, on purpose, rather than guessed at here mid-entry.
-              void onAddChip({ label, type: 'remedy' });
+              void onAddChip({ label, type: 'treatment' });
               toggleTreatment(label);
             }}
           />
