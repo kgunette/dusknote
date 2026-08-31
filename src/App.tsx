@@ -255,7 +255,14 @@ export default function App() {
   // item (or merges it into an existing same-type item, folding the two histories under one name).
   // The rewritten entries + new vocab both re-push on the next sync. reload picks up both.
   const renameVocabItem = useCallback(
-    async (item: VocabItem, newLabel: string, newLimit: number | null, mergeInto: VocabItem | null) => {
+    async (
+      item: VocabItem,
+      newLabel: string,
+      // What the sheet set besides the name: the medication mark and either limit. Widened from a
+      // bare limit (2026-08-31) so one save can carry a rename and a mark change together.
+      fields: Partial<VocabItem>,
+      mergeInto: VocabItem | null
+    ) => {
       const field = item.type === 'symptom' ? 'symptom' : item.type === 'factor' ? 'factor' : 'treatment';
       // On a MERGE the existing target's name wins — the typed text only pointed at it, so its
       // casing is ignored (otherwise "testing"→"dizziness" would recase the real "Dizziness" and
@@ -268,16 +275,14 @@ export default function App() {
             .map((v) =>
               v === mergeInto
                 ? {
-                    ...v, // keep the target's label AND its own limit as-is; the typed casing/limit
-                    // only described the item being merged AWAY, so it must not overwrite the target
-                    // (a silent limit change would drop the med from Stats/report counts).
+                    ...v, // keep the target's label, mark and limits as-is; what the sheet held
+                    // described the item being merged AWAY, so it must not overwrite the target
+                    // (changing its mark or limit would drop it from Stats and report counts).
                     archived: v.archived && item.archived, // active if either was active
                   }
                 : v
             )
-        : vocab.map((v) =>
-            v === item ? { ...v, label: newLabel, limit: v.type === 'medication' ? newLimit : v.limit } : v
-          );
+        : vocab.map((v) => (v === item ? { ...v, label: newLabel, ...fields } : v));
       await prefs.setVocab(next);
       await reload();
     },
