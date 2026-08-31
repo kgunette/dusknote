@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  dailyLimits,
   dosesOnDate,
   reconcileOrphans,
   resolveAddItem,
@@ -183,5 +184,21 @@ describe('the daily dose count', () => {
   it('matches the label the way everything else does, ignoring case and padding', () => {
     const e = entry({ treatments: [dose('  sumatriptan ', '08:30')] });
     expect(dosesOnDate([e], 'Sumatriptan', '2026-08-10')).toBe(1);
+  });
+});
+
+describe('the daily limits the log form reads', () => {
+  it('gives a marked medication its daily limit, keyed so case never matters', () => {
+    const m = dailyLimits([vocab('Sumatriptan', 'medication', { dailyLimit: 2 })]);
+    expect(m.get('sumatriptan')).toBe(2);
+  });
+
+  it('leaves out an unmarked treatment, an archived one, and one with no daily limit', () => {
+    const m = dailyLimits([
+      vocab('Coffee', 'remedy', { dailyLimit: 3 }),
+      vocab('Rizatriptan', 'medication', { dailyLimit: 2, archived: true }),
+      vocab('Ibuprofen', 'medication', { limit: 10 }),
+    ]);
+    expect(m.size).toBe(0);
   });
 });

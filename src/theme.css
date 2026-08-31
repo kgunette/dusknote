@@ -1441,6 +1441,18 @@ input.inp-error {
   font-size: 1.0625rem;
   color: var(--text);
 }
+
+/* The daily dose count, on the last attempt card of a treatment that carries a daily limit.
+   Amber only ABOVE the limit, never at it: Stats turns a month amber when days used are GREATER
+   than the limit, and two of two is exactly the number you chose. */
+.dose-count {
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+.dose-count.over {
+  color: var(--warn);
+  font-weight: 700;
+}
 input.attempt-time {
   /* Wide enough for "12:07 PM" plus Chrome's clock glyph. iOS renders the value compactly
      and never clipped; desktop and Android Chrome draw text + icon and overflowed at 132px. */

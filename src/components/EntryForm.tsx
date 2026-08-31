@@ -4,6 +4,7 @@ import { fmtDateLine, glyphClass, HELPED_WORD, SAVED_FLASH_MS, toHM, toISODate, 
 import { RatingPicker } from './RatingPicker';
 import { ChipRow } from './ChipRow';
 import { RevealSection } from './RevealSection';
+import { dosesOnDate } from '../vocab';
 
 /** How long the "remove doses with the ×" hint stays up before fading on its own. */
 const DOSE_HINT_MS = 4500;
@@ -39,10 +40,16 @@ export function EntryForm({
   onCancel,
   onDelete,
   onAddChip,
+  dailyLimits,
+  entries,
 }: {
   existing?: Entry;
   chips: ChipDef[];
   ratingWords: string[];
+  /** Daily dose limits by folded label, for the count on the attempt card. */
+  dailyLimits: Map<string, number>;
+  /** Every saved entry, so the day's count can look beyond the one being edited. */
+  entries: Entry[];
   onSave: (e: Entry) => Promise<void>;
   afterSave: () => void;
   onCancel?: () => void;
@@ -250,11 +257,12 @@ export function EntryForm({
             options={treatmentChips.map((c) => c.label)}
             selected={attempts.map((a) => a.treatment)}
             onToggle={toggleTreatment}
-            onAdd={(label, type) => {
-              void onAddChip({ label, type: type ?? 'remedy' });
+            onAdd={(label) => {
+              // Unmarked, the way a factor arrives unwatched. Marking it a medication is done in
+              // Log options, on purpose, rather than guessed at here mid-entry.
+              void onAddChip({ label, type: 'remedy' });
               toggleTreatment(label);
             }}
-            askTreatmentType
           />
           {doseHint && (
             <p className="chip-hint" role="status">
@@ -262,10 +270,45 @@ export function EntryForm({
               on each card.
             </p>
           )}
-          {attempts.map((a, i) => (
+          {attempts.map((a, i) => {
+            // The daily count, and the first number the app shows while you are RECORDING rather
+            // than reviewing. It is the whole reason a daily limit exists: read in the moment,
+            // deciding whether to take another. A day can span more than one entry, so it counts
+            // every saved entry carrying this date (minus this one, which the form itself holds)
+            // plus what is in the form right now. Only on the LAST card of that treatment, where
+            // "Log another dose" already sits. It stays a COUNT, not a gate.
+            const fold = a.treatment.trim().toLowerCase();
+            const limit = dailyLimits.get(fold);
+            const isLastOfTreatment = !attempts.some(
+              (x, j) => j > i && x.treatment.trim().toLowerCase() === fold
+            );
+            let dose: { taken: number; limit: number } | null = null;
+            if (limit != null && isLastOfTreatment) {
+              const elsewhere = dosesOnDate(
+                entries.filter((e) => e.id !== existing?.id),
+                a.treatment,
+                date
+              );
+              const here = attempts.filter((x) => x.treatment.trim().toLowerCase() === fold).length;
+              dose = { taken: elsewhere + here, limit };
+            }
+            return (
             <div className="attempt" key={a.id}>
               <div className="attempt-top">
-                <span className="attempt-name">{a.treatment}</span>
+                <span className="attempt-name">
+                  {a.treatment}
+                  {dose && (
+                    // Amber only ABOVE the limit, never at it, which is the rule Stats already
+                    // follows: a month goes amber when days used are GREATER than the limit. Two
+                    // of two is exactly the number you chose and nothing is wrong with it.
+                    <>
+                      {' '}
+                      <span className={'dose-count' + (dose.taken > dose.limit ? ' over' : '')}>
+                        {dose.taken} of {dose.limit} today
+                      </span>
+                    </>
+                  )}
+                </span>
                 <span className="attempt-top-right">
                   <input
                     type="time"
@@ -319,7 +362,8 @@ export function EntryForm({
                 </button>
               )}
             </div>
-          ))}
+            );
+          })}
         </RevealSection>
 
         <RevealSection

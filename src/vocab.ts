@@ -73,6 +73,19 @@ export function statsMeds(vocab: VocabItem[]): TrackedMed[] {
     .map((v) => ({ name: v.label, limit: v.limit }));
 }
 
+/** Daily dose limits, keyed by folded label, for the log form's count. Active medications only:
+ *  an archived one is not an option you can log against, and a limit on anything unmarked means
+ *  nothing. Kept as its own derivation so the log form never learns about VocabItem, the same way
+ *  activeChips and statsMeds keep the other consumers out of it. */
+export function dailyLimits(vocab: VocabItem[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const v of vocab) {
+    if (v.archived || v.type !== 'medication') continue;
+    if (v.dailyLimit != null && v.dailyLimit > 0) out.set(v.label.trim().toLowerCase(), v.dailyLimit);
+  }
+  return out;
+}
+
 /**
  * Build vocab from the legacy separated lists (chips + tracked meds). Each chip becomes an item;
  * a medication's limit is pulled from the matching tracked med by name. A tracked med with no

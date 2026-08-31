@@ -9,7 +9,7 @@ import {
   renameLabelInEntries,
   tombstoneEntry,
 } from './db';
-import { activeChips, resolveAddItem, statsMeds, watchedFactors } from './vocab';
+import { activeChips, dailyLimits, resolveAddItem, statsMeds, watchedFactors } from './vocab';
 import { setConditionNoun } from './config';
 import { LogOptionsScreen } from './screens/LogOptionsScreen';
 import { ImportReviewScreen } from './screens/ImportReviewScreen';
@@ -58,6 +58,8 @@ export default function App() {
   const chips = useMemo(() => activeChips(vocab), [vocab]);
   // Stats/Report count only medications that carry a limit (a med with no limit is log-only).
   const medsForStats = useMemo(() => statsMeds(vocab), [vocab]);
+  // The log form's daily counts. Its own derivation, so the form never learns about VocabItem.
+  const dailyForLog = useMemo(() => dailyLimits(vocab), [vocab]);
   const watchedForStats = useMemo(() => watchedFactors(vocab), [vocab]);
   const [ratingWords, setRatingWords] = useState<string[]>([]); // editable 1–5 words
   // Personalization settings (4c): the noun lives in config's module value for render-time
@@ -414,6 +416,8 @@ export default function App() {
       <div className={'screen-slide ' + navDir} key={tab}>
         {entryFormOpen ? (
         <EntryForm
+          dailyLimits={dailyForLog}
+          entries={entries}
           key={editing ? editing.id + editing.updated_at : 'new'}
           existing={editing ?? undefined}
           chips={chips}
