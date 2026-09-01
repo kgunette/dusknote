@@ -546,9 +546,9 @@ export function SettingsScreen({
         <div className="card col">
           <div className="card-title">Log options</div>
           <div className="caption">
-            Everything you can tap when you log: medications (and their limits), remedies, symptoms,
-            and factors. Archive what you no longer use, add new options, or set a medication's
-            monthly limit.
+            Everything you can tap when you log: treatments, symptoms, and factors. Archive what
+            you no longer use, add new options, mark a treatment as a medication, or set a
+            medication's limits.
           </div>
           <button type="button" className="btn-secondary" onClick={onOpenLogOptions}>
             Manage log options
