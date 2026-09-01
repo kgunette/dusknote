@@ -118,15 +118,18 @@ What can be personalized:
 - The five rating words for levels 1 to 5 (defaults: Very mild, Mild,
   Moderate, Severe, Very severe). Level 0 is locked and means "no episode",
   a symptom-only day.
-- Medications (each can have a monthly limit, counted in days used, which is
-  what makes it appear in stats), remedies (non-drug things like coffee or a
-  hot shower), symptoms, and factors (circumstances like poor sleep, weather,
-  travel). Factors can be "watched", which splits each month's episode days
-  into days with and without that factor.
+- Treatments: anything I do about it, from a drug to an ice pack, all on one
+  list. Any of them can be marked as a medication by tapping the pill next to
+  it. A medication can carry a monthly limit (days used, which is what
+  makes it appear in stats) and a daily limit (doses in a day, shown while I
+  log).
+- Symptoms, and factors (circumstances like poor sleep, weather, travel).
+  Factors can be "watched", which splits each month's episode days into days
+  with and without that factor.
 
 Ask me what I track and how I'd naturally talk about it, then propose: the
 word for what I track, five rating words in my own register, and a starter
-set of symptoms, medications or remedies, and factors worth watching. Keep
+set of symptoms, treatments, and factors worth watching. Keep
 each list short; I can add more in the app anytime. Then tell me exactly
 where in the app to enter each thing, one group at a time.
 ```

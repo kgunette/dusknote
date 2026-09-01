@@ -75,7 +75,7 @@ export function SettingsScreen({
   onPatientName: (name: string) => void;
   onGaps: (g: Gap[]) => void;
   onImport: (data: { entries: Entry[]; events: MedEvent[]; gaps: Gap[] }) => Promise<ImportResult>;
-  /** A Preferences file changes settings you already have, so it goes to the review screen
+  /** A LogOptions file changes settings you already have, so it goes to the review screen
    *  instead of being merged. Nothing has changed at this point. */
   onPrefsFile: (prefs: PrefFile, fileName: string) => void;
   /** Set after the review screen applies, so the confirmation lands where an import's own
@@ -619,9 +619,10 @@ export function SettingsScreen({
         <div className="card col">
           <div className="card-title">Import</div>
           <div className="caption">
-            Import historical records from a CSV file with the same columns as your {APP_NAME}{' '}
-            sheet (an Entries, Events, or Gaps table). Adds to the log (but never replaces), and
-            then backs up to the Google Spreadsheet. A file with any problem imports nothing.
+            Import a CSV with the same columns as your {APP_NAME} sheet: Entries, Events,
+            Gaps, or LogOptions. History is only added to, never replaced. A LogOptions file
+            changes your log options, so you approve every change first. A file with any problem
+            imports nothing.
           </div>
           <input
             ref={fileRef}
