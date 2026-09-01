@@ -4,10 +4,10 @@
 // local state (the phone is the source of truth). Multi-value fields use "; " separators so
 // Sheets filters work and a human reads it naturally.
 
-import type { Attempt, ChipDef, Entry, Gap, Helped, MedEvent, TrackedMed, VocabItem } from '../types';
+import type { Attempt, Entry, Gap, Helped, MedEvent, TrackedMed, VocabItem } from '../types';
 import { ratingWord, uid } from '../lib';
 import { RATING_WORDS } from '../seeds';
-import { vocabFromLegacy } from '../vocab';
+import { fromLegacyType, vocabFromLegacy, type LegacyChip } from '../vocab';
 
 export interface SyncSnapshot {
   entries: Entry[]; // live entries only (tombstones already filtered out)
@@ -34,8 +34,14 @@ export const TAB_ORDER = ['Entries', 'Events', 'Gaps', 'Preferences'] as const;
  *  v7: Preferences gains Kind=setting rows (the condition noun; the report patient name), 2026-07-23.
  *  v8: Preferences gains a DailyLimit column (doses in one day, on Kind=item medication rows),
  *      2026-08-31. Purely additive: an older sheet has no such column, which states nothing and
- *      reads as null, so nothing written before v8 needs converting. */
-export const SHEET_SCHEMA_VERSION = 7;
+ *      reads as null, so nothing written before v8 needs converting.
+ *  v9: A TREATMENT IS ONE KIND, with a mark (2026-08-31). Type writes `treatment` for both, and a
+ *      new Medication column carries the mark, following the file's own convention where Archived
+ *      holds "archived" and Watched holds "watched". **The reader still accepts the retired
+ *      `medication` and `remedy` type words**, so a tab or an export written before v9 keeps
+ *      loading untouched; a sheet picks up the new shape on its next backup, which rewrites that
+ *      tab from scratch as every backup does. Nobody has to do anything. */
+export const SHEET_SCHEMA_VERSION = 9;
 
 export const HEADERS: Record<string, string[]> = {
   // Entries is the doctor-readable table; column order is locked.
@@ -57,7 +63,7 @@ export const HEADERS: Record<string, string[]> = {
   Gaps: ['Start', 'End', 'Reason'],
   // Machine state that travels to a new phone: one row per vocab item (Kind=item). Kept
   // human-readable — Label/Type spell it out, Limit is a plain number, Archived is a word.
-  Preferences: ['Kind', 'Label', 'Type', 'Limit', 'Archived', 'Watched', 'DailyLimit'],
+  Preferences: ['Kind', 'Label', 'Type', 'Medication', 'Limit', 'Archived', 'Watched', 'DailyLimit'],
 };
 
 /** One readable treatment cell: "06:15 Water → no; 08:30 Ibuprofen → yes". */
@@ -114,16 +120,17 @@ export function buildTabs(s: SyncSnapshot): TabValues[] {
           'item',
           v.label,
           v.type,
+          v.medication ? 'medication' : '',
           v.limit == null ? '' : String(v.limit),
           v.archived ? 'archived' : '',
           v.watched ? 'watched' : '',
           v.dailyLimit == null ? '' : String(v.dailyLimit),
         ]),
         // rating rows: the level sits in the Type column (Kind=rating, Label=word).
-        ...s.ratingWords.map((w, i) => ['rating', w, String(i + 1), '', '', '', '']),
+        ...s.ratingWords.map((w, i) => ['rating', w, String(i + 1), '', '', '', '', '']),
         // setting rows: the value sits in Label, the setting key in Type (Kind=setting, v7).
-        ['setting', s.conditionNoun, 'noun', '', '', '', ''],
-        ...(s.patientName ? [['setting', s.patientName, 'name', '', '', '', '']] : []),
+        ['setting', s.conditionNoun, 'noun', '', '', '', '', ''],
+        ...(s.patientName ? [['setting', s.patientName, 'name', '', '', '', '', '']] : []),
       ],
     },
   ];
@@ -180,9 +187,16 @@ export interface StatedItem {
   /** 1-based row number in the table, so an import error can name the row a person can go and fix. */
   row: number;
   label: string;
-  /** The Type cell verbatim, or null when it is empty. Unrecognized words come through as
-   *  written so the import can name what it found; the pull path treats anything odd as a remedy. */
+  /** The Type cell verbatim, or null when it is empty. Unrecognized words come through as written
+   *  so the import can name what it found; the pull path treats anything odd as an unmarked
+   *  treatment, which asserts nothing. */
   type: string | null;
+  /** Whether this row says the treatment is a medication: true, false, or **null for "the file
+   *  does not say"**. Three-valued because all three happen. A pre-v9 row says it through the Type
+   *  word itself (`medication` / `remedy`). A v9 row says it through the Medication column. A row
+   *  that writes `Type=treatment` and carries no Medication column states nothing, and an import
+   *  must then leave the mark alone, which is the same rule every other setting follows. */
+  medication: boolean | null;
   /** The MONTHLY limit: a whole number >= 1, or null for none. Meaningful only when
    *  `columns.limit`. */
   limit: number | null;
@@ -205,7 +219,13 @@ export interface StatedValue {
 export interface StatedPreferences {
   items: StatedItem[];
   /** Which optional columns the table carries. An absent column states nothing for any row. */
-  columns: { limit: boolean; archived: boolean; watched: boolean; dailyLimit: boolean };
+  columns: {
+    limit: boolean;
+    archived: boolean;
+    watched: boolean;
+    dailyLimit: boolean;
+    medication: boolean;
+  };
   /** Five slots for ratings 1 through 5; null where the table names no word for that level.
    *  Each carries its row number so a caller that has to refuse a word can name the row. */
   ratingWords: (StatedValue | null)[];
@@ -213,7 +233,7 @@ export interface StatedPreferences {
   conditionNoun: StatedValue | null;
   patientName: StatedValue | null;
   /** Pre-v3 chip/med rows, for the pull path's accept-old sheet recovery. */
-  legacyChips: ChipDef[];
+  legacyChips: LegacyChip[];
   legacyMeds: TrackedMed[];
 }
 
@@ -231,7 +251,7 @@ export function readPreferenceRows(rows: string[][]): StatedPreferences {
   const ratingWords: (StatedValue | null)[] = [null, null, null, null, null];
   let conditionNoun: StatedValue | null = null;
   let patientName: StatedValue | null = null;
-  const legacyChips: ChipDef[] = [];
+  const legacyChips: LegacyChip[] = [];
   const legacyMeds: TrackedMed[] = [];
 
   for (let r = 1; r < rows.length; r++) {
@@ -247,10 +267,20 @@ export function readPreferenceRows(rows: string[][]): StatedPreferences {
     const limit = readLimit('Limit');
     const dailyLimit = readLimit('DailyLimit');
     if (kind === 'item') {
+      // The mark, from whichever of the two shapes this file is written in.
+      const rawType = cell(row, 'Type').trim();
+      const legacyType = rawType.toLowerCase();
+      const medication =
+        legacyType === 'medication' || legacyType === 'remedy'
+          ? legacyType === 'medication' // pre-v9: the Type word IS the mark
+          : idx['Medication'] != null
+            ? cell(row, 'Medication').trim().toLowerCase() === 'medication'
+            : null; // says nothing about it
       items.push({
         row: r + 1,
         label,
-        type: cell(row, 'Type').trim() || null,
+        type: rawType || null,
+        medication,
         limit,
         archived: cell(row, 'Archived').trim().toLowerCase() === 'archived',
         watched: cell(row, 'Watched').trim().toLowerCase() === 'watched',
@@ -267,7 +297,8 @@ export function readPreferenceRows(rows: string[][]): StatedPreferences {
       if (key === 'noun') conditionNoun = { row: r + 1, value: label };
       else if (key === 'name') patientName = { row: r + 1, value: label };
     } else if (kind === 'chip') {
-      legacyChips.push({ label, type: (cell(row, 'Type') as ChipDef['type']) || 'remedy' });
+      // Kept as the raw word this row was written with; vocabFromLegacy translates it.
+      legacyChips.push({ label, type: cell(row, 'Type').trim() });
     } else if (kind === 'med') {
       legacyMeds.push({ name: label, limit });
     }
@@ -282,6 +313,9 @@ export function readPreferenceRows(rows: string[][]): StatedPreferences {
       archived: idx['Archived'] != null,
       watched: idx['Watched'] != null,
       dailyLimit: idx['DailyLimit'] != null,
+      // The mark is stated per row rather than per table (a pre-v9 file states it through Type),
+      // so this only reports whether the dedicated column exists.
+      medication: idx['Medication'] != null,
     },
     ratingWords,
     conditionNoun,
@@ -328,13 +362,19 @@ export function parseTabs(raw: Record<string, string[][]>): SyncSnapshot {
   // reads the same table through readPreferenceRows directly.
   const stated = readPreferenceRows(raw.Preferences ?? []);
   const vocab: VocabItem[] = stated.items.map((it) => {
-    const type = (it.type as VocabItem['type']) || 'remedy';
+    // fromLegacyType understands both shapes: a pre-v9 `medication`/`remedy` word, and v9's
+    // `treatment`. Anything unrecognized becomes an unmarked treatment, which asserts nothing.
+    const { type, medication: fromType } = fromLegacyType(it.type ?? '');
+    // A pull is recovery, so an unstated mark means unmarked rather than "keep what you had":
+    // there is nothing on the device to keep.
+    const medication = type === 'treatment' ? (it.medication ?? fromType ?? false) : undefined;
     return {
       label: it.label,
       type,
-      limit: type === 'medication' ? it.limit : null,
+      medication,
+      limit: medication ? it.limit : null,
       // Absent column (pre-v8 sheet) reads as no daily limit — accept-old, write-new.
-      dailyLimit: type === 'medication' ? it.dailyLimit : null,
+      dailyLimit: medication ? it.dailyLimit : null,
       archived: it.archived,
       // Absent column (pre-v6 sheet) reads as not watched — accept-old, write-new.
       watched: type === 'factor' && it.watched,

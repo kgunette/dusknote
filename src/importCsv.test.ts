@@ -20,7 +20,7 @@ describe('recognizing a Preferences file', () => {
   it('reads Kind + Label as a Preferences file', () => {
     const p = prefs(`${PREF_HEADER}\nitem,Coffee,remedy,,,`);
     expect(p.items).toEqual([
-      { label: 'Coffee', type: 'remedy', limit: null, dailyLimit: null, archived: false, watched: false },
+      { label: 'Coffee', type: 'treatment', medication: false, limit: null, dailyLimit: null, archived: false, watched: false },
     ]);
   });
 
@@ -59,12 +59,12 @@ describe('reading what a Preferences file states', () => {
       ].join('\n')
     );
     expect(p.items).toEqual([
-      { label: 'Sumatriptan', type: 'medication', limit: 10, dailyLimit: null, archived: false, watched: false },
-      { label: 'Rizatriptan', type: 'medication', limit: null, dailyLimit: null, archived: true, watched: false },
-      { label: 'Poor sleep', type: 'factor', limit: null, dailyLimit: null, archived: false, watched: true },
-      { label: 'Nausea', type: 'symptom', limit: null, dailyLimit: null, archived: false, watched: false },
+      { label: 'Sumatriptan', type: 'treatment', medication: true, limit: 10, dailyLimit: null, archived: false, watched: false },
+      { label: 'Rizatriptan', type: 'treatment', medication: true, limit: null, dailyLimit: null, archived: true, watched: false },
+      { label: 'Poor sleep', type: 'factor', medication: null, limit: null, dailyLimit: null, archived: false, watched: true },
+      { label: 'Nausea', type: 'symptom', medication: null, limit: null, dailyLimit: null, archived: false, watched: false },
     ]);
-    expect(p.states).toEqual({ limit: true, archived: true, watched: true, dailyLimit: false });
+    expect(p.states).toEqual({ limit: true, archived: true, watched: true, dailyLimit: false, medication: false });
   });
 
   it('reads rating rows by level, and leaves unnamed levels unstated', () => {
@@ -94,7 +94,7 @@ describe('reading what a Preferences file states', () => {
 describe('a partial file states nothing it does not carry', () => {
   it('reports absent Limit, Archived and Watched columns as unstated', () => {
     const p = prefs(['Kind,Label,Type', 'item,Coffee,remedy', 'item,Poor sleep,factor'].join('\n'));
-    expect(p.states).toEqual({ limit: false, archived: false, watched: false, dailyLimit: false });
+    expect(p.states).toEqual({ limit: false, archived: false, watched: false, dailyLimit: false, medication: false });
   });
 
   it('leaves the rating words, the tracked word and the report name unstated', () => {
@@ -134,12 +134,20 @@ describe('refusing a Preferences file', () => {
     expect(e).toContain('“medicaton”');
   });
 
-  it('refuses a medication and a remedy sharing a name', () => {
+  it('refuses one treatment listed twice, however each row is marked', () => {
+    // This used to be a bespoke medication-vs-remedy clash. With one treatment type it is just a
+    // duplicate, caught by the ordinary check with a clearer message. A file still cannot tell the
+    // app two different things about one option.
     const e = refuse(
       [PREF_HEADER, 'item,Coffee,medication,,,', 'item,Coffee,remedy,,,'].join('\n')
     );
-    expect(e).toContain('Row 3, Type:');
+    expect(e).toContain('Row 3, Label:');
     expect(e).toContain('row 2');
+  });
+
+  it('names the current type words when it refuses an unknown one', () => {
+    const e = refuse([PREF_HEADER, 'item,Coffee,potion,,,'].join('\n'));
+    expect(e).toContain('symptom, treatment, or factor');
   });
 
   it('refuses the same option listed twice', () => {

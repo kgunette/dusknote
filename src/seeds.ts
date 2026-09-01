@@ -17,8 +17,8 @@ export const RATING_WORDS = [
  *  the user sets one. */
 export const SEED_CHIPS: ChipDef[] = [
   // remedies
-  { label: 'Water', type: 'remedy' },
-  { label: 'Rest', type: 'remedy' },
+  { label: 'Water', type: 'treatment' },
+  { label: 'Rest', type: 'treatment' },
   // factors
   { label: 'Stress', type: 'factor' },
   { label: 'Poor sleep', type: 'factor' },

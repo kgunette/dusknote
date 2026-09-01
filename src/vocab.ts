@@ -12,31 +12,17 @@ export function vocabKey(type: ChipType, label: string): string {
   return `${type}:${label.trim().toLowerCase()}`;
 }
 
-/** Medication and remedy are one thing wearing a mark, not two kinds (2026-08-31). A medication is
- *  a SUBSET of the treatments you try, so the option list shows ONE Treatments group and the pill
- *  marks which of them are drugs. The stored type stays 'medication' / 'remedy' so every existing
- *  sheet and export still reads without conversion; the pill is that word, rendered. */
+/** A treatment is ONE kind of thing with a mark on it (2026-08-31), not two kinds. The stored type
+ *  is 'treatment' either way; `medication` says which of them are drugs. Kept as a named helper
+ *  because the intent reads better than the comparison does at each call site. */
 export function isTreatmentType(t: ChipType): boolean {
-  return t === 'medication' || t === 'remedy';
+  return t === 'treatment';
 }
 
-/** The item a new label would collide with. A TREATMENT is identified by its label alone, whichever
- *  way its pill is set, because an entry stores the bare treatment name and nothing could tell a
- *  medication "Coffee" from a remedy "Coffee" apart. Symptoms and factors keep their own namespace.
- *  This is what retires the old med-vs-remedy name clash: with one list there is one Coffee, and
- *  marking it is an edit rather than a second item you are refused. */
-export function findTreatmentOrItem(
-  vocab: VocabItem[],
-  type: ChipType,
-  label: string
-): VocabItem | null {
-  const lower = label.trim().toLowerCase();
-  if (isTreatmentType(type)) {
-    return (
-      vocab.find((v) => isTreatmentType(v.type) && v.label.trim().toLowerCase() === lower) ?? null
-    );
-  }
-  return vocab.find((v) => vocabKey(v.type, v.label) === vocabKey(type, label)) ?? null;
+/** Is this option a marked medication? The one question `statsMeds`, the limits and the pill all
+ *  ask. A mark on anything that is not a treatment is meaningless and never set. */
+export function isMedication(v: VocabItem): boolean {
+  return v.type === 'treatment' && !!v.medication;
 }
 
 /** Strip the characters that would corrupt the sheet round-trip: the "; " multi-value separator,
@@ -54,6 +40,18 @@ export function sanitizeLabel(s: string): string {
 export const byLabelAsc = (a: { label: string }, b: { label: string }): number =>
   a.label.localeCompare(b.label, undefined, { sensitivity: 'base' });
 
+/** The item a new label would collide with. Identity is the type plus the folded label, so the
+ *  same word can be a symptom and a factor at once and those stay two options. Treatments need no
+ *  special case any more: there is one treatment type, so one Coffee, and marking it is an edit
+ *  rather than a second item you are refused. */
+export function findTreatmentOrItem(
+  vocab: VocabItem[],
+  type: ChipType,
+  label: string
+): VocabItem | null {
+  return vocab.find((v) => vocabKey(v.type, v.label) === vocabKey(type, label)) ?? null;
+}
+
 /** Tap options for the log form: every non-archived item, sorted A->Z. The form filters by type,
  *  which preserves this order, so each type row (Symptoms / Treatments / Other factors) is alpha.
  *  Archived items are hidden. */
@@ -69,7 +67,7 @@ export function activeChips(vocab: VocabItem[]): ChipDef[] {
  *  unchanged: only a medication carrying a limit surfaces. */
 export function statsMeds(vocab: VocabItem[]): TrackedMed[] {
   return vocab
-    .filter((v) => !v.archived && v.type === 'medication' && v.limit != null && v.limit > 0)
+    .filter((v) => !v.archived && isMedication(v) && v.limit != null && v.limit > 0)
     .map((v) => ({ name: v.label, limit: v.limit }));
 }
 
@@ -80,10 +78,57 @@ export function statsMeds(vocab: VocabItem[]): TrackedMed[] {
 export function dailyLimits(vocab: VocabItem[]): Map<string, number> {
   const out = new Map<string, number>();
   for (const v of vocab) {
-    if (v.archived || v.type !== 'medication') continue;
+    if (v.archived || !isMedication(v)) continue;
     if (v.dailyLimit != null && v.dailyLimit > 0) out.set(v.label.trim().toLowerCase(), v.dailyLimit);
   }
   return out;
+}
+
+/** A chip as the app stored it BEFORE a treatment became one kind with a mark: its `type` is one
+ *  of the old words. Only the legacy readers produce these, which is why the retired vocabulary is
+ *  confined to this one shape and the one function below. */
+export interface LegacyChip {
+  label: string;
+  type: string;
+}
+
+/** Translate a stored `Type` word, old or new, into the model the app uses now. This is the ONLY
+ *  place the retired words are understood, so nothing downstream has to know they existed.
+ *  - `medication` (pre-2026-08-31) becomes a marked treatment
+ *  - `remedy` (same era) becomes an unmarked one
+ *  - anything unrecognized becomes an unmarked treatment, which asserts nothing
+ *  A tab or export written before the change keeps loading because of this function. */
+export function fromLegacyType(raw: string): { type: ChipType; medication?: boolean } {
+  const t = raw.trim().toLowerCase();
+  if (t === 'symptom' || t === 'factor') return { type: t };
+  if (t === 'medication') return { type: 'treatment', medication: true };
+  return { type: 'treatment', medication: false };
+}
+
+/**
+ * Bring a stored option list onto the current model, in place, on the device.
+ *
+ * **This is the on-device half of retiring the two type words (2026-08-31), and without it the
+ * screens go blank.** The sheet reader translates what it pulls, but a phone that is already set
+ * up never pulls: it reads its own IndexedDB, which still holds `type: 'medication'` and
+ * `'remedy'`. Those match no group any more, so every treatment would disappear from Log options,
+ * from the log form's Treatments row, and from Stats, while the entries mentioning them sat
+ * untouched underneath. Caught by loading the old shape into the running app.
+ *
+ * Lossless by construction: a stored medication comes out marked, with its limit; a stored remedy
+ * comes out unmarked. Idempotent, so a list already converted is returned unchanged and nothing
+ * re-persists. Returns null when there was nothing to do, so the caller can skip the write.
+ */
+export function migrateVocabTypes(vocab: VocabItem[]): VocabItem[] | null {
+  let changed = false;
+  const out = vocab.map((v) => {
+    const raw = v.type as string;
+    if (raw !== 'medication' && raw !== 'remedy') return v;
+    changed = true;
+    const { type, medication } = fromLegacyType(raw);
+    return { ...v, type, medication, limit: medication ? v.limit : null };
+  });
+  return changed ? out : null;
 }
 
 /**
@@ -92,20 +137,24 @@ export function dailyLimits(vocab: VocabItem[]): Map<string, number> {
  * matching chip (an orphan) comes in as its own medication item. Shared by the on-device
  * migration (`ensureVocab`) and backward-compatible sheet recovery (`parseTabs`).
  */
-export function vocabFromLegacy(chips: ChipDef[], meds: TrackedMed[]): VocabItem[] {
+export function vocabFromLegacy(chips: LegacyChip[], meds: TrackedMed[]): VocabItem[] {
   const limitByMed = new Map(meds.map((m) => [m.name.trim().toLowerCase(), m.limit]));
-  const items: VocabItem[] = chips.map((c) => ({
-    label: c.label,
-    type: c.type,
-    limit: c.type === 'medication' ? (limitByMed.get(c.label.trim().toLowerCase()) ?? null) : null,
-    archived: false,
-  }));
+  const items: VocabItem[] = chips.map((c) => {
+    const { type, medication } = fromLegacyType(c.type);
+    return {
+      label: c.label,
+      type,
+      medication,
+      limit: medication ? (limitByMed.get(c.label.trim().toLowerCase()) ?? null) : null,
+      archived: false,
+    };
+  });
   const seen = new Set(items.map((i) => vocabKey(i.type, i.label)));
   for (const m of meds) {
     if (!m.name.trim()) continue;
-    const key = vocabKey('medication', m.name);
+    const key = vocabKey('treatment', m.name);
     if (!seen.has(key)) {
-      items.push({ label: m.name, type: 'medication', limit: m.limit, archived: false });
+      items.push({ label: m.name, type: 'treatment', medication: true, limit: m.limit, archived: false });
       seen.add(key);
     }
   }
@@ -139,8 +188,8 @@ export type AddResolution =
  *  want. The log form's "+ add" passes none, because it has no form and must never quietly strip
  *  the mark or the limits off a medication you archived. */
 export interface AddFields {
-  /** Treatments only: 'medication' marks the pill on, 'remedy' off. */
-  type?: ChipType;
+  /** Treatments only: the pill. */
+  medication?: boolean;
   limit?: number | null;
   dailyLimit?: number | null;
 }
@@ -158,7 +207,7 @@ export function resolveAddItem(
     const item: VocabItem = {
       ...same,
       archived: false,
-      type: fields.type ?? same.type,
+      medication: fields.medication ?? same.medication,
       limit: fields.limit === undefined ? same.limit : fields.limit,
       dailyLimit: fields.dailyLimit === undefined ? (same.dailyLimit ?? null) : fields.dailyLimit,
     };
@@ -166,7 +215,8 @@ export function resolveAddItem(
   }
   const item: VocabItem = {
     label,
-    type: fields.type ?? type,
+    type,
+    medication: type === 'treatment' ? (fields.medication ?? false) : undefined,
     limit: fields.limit ?? null,
     dailyLimit: fields.dailyLimit ?? null,
     archived: false,
@@ -187,8 +237,8 @@ export function setMedicationMark(
   return vocab.map((v) =>
     v === item
       ? isMedication
-        ? { ...v, type: 'medication' as ChipType }
-        : { ...v, type: 'remedy' as ChipType, limit: null, dailyLimit: null }
+        ? { ...v, medication: true }
+        : { ...v, medication: false, limit: null, dailyLimit: null }
       : v
   );
 }
@@ -249,9 +299,8 @@ export function reconcileOrphans(vocab: VocabItem[], entries: Entry[]): VocabIte
     e.treatments.forEach((a) => {
       const l = a.treatment.trim();
       if (!l) return;
-      // Known as a treatment either way? Then it's not an orphan.
-      if (seen.has(vocabKey('medication', l)) || seen.has(vocabKey('remedy', l))) return;
-      add(l, 'remedy'); // unmarked: the scan does not get to decide something is a drug
+      if (seen.has(vocabKey('treatment', l))) return;
+      add(l, 'treatment'); // unmarked: the scan does not get to decide something is a drug
     });
   }
   return out;

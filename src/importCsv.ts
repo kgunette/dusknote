@@ -15,7 +15,7 @@
 
 import type { ChipType, Entry, Gap, MedEvent } from './types';
 import { parseTreatments, readPreferenceRows, splitMulti } from './google/serialize';
-import { sanitizeLabel } from './vocab';
+import { fromLegacyType, sanitizeLabel } from './vocab';
 import { normalizeNoun } from './config';
 
 const MAX_CHARS = 2_000_000; // ~2 MB of text; far beyond any real history
@@ -38,13 +38,25 @@ const ENTRY_COLS = [
 ];
 const EVENT_COLS = ['Date', 'Note'];
 const GAP_COLS = ['Start', 'End', 'Reason'];
-const PREF_COLS = ['Kind', 'Label', 'Type', 'Limit', 'Archived', 'Watched'];
-const ITEM_TYPES: ChipType[] = ['symptom', 'medication', 'remedy', 'factor'];
+// Every column a Preferences file may carry. Anything else is reported as unknown, so a column
+// added to the sheet has to be added here too (DailyLimit and Medication, both 2026-08-31).
+const PREF_COLS = ['Kind', 'Label', 'Type', 'Medication', 'Limit', 'Archived', 'Watched', 'DailyLimit'];
+/** The type words a file may use. The first three are current; `medication` and `remedy` are the
+ *  retired pair, still accepted so a file written before 2026-08-31 keeps importing. Error messages
+ *  name only the current three, because telling someone to write a retired word is the thing this
+ *  change exists to stop. */
+const ITEM_TYPES = ['symptom', 'treatment', 'factor', 'medication', 'remedy'];
+const CURRENT_TYPES = 'symptom, treatment, or factor';
 
 /** One Kind=item row, validated: it has a type, so it names an option the app can find. */
 export interface PrefItem {
   label: string;
   type: ChipType;
+  /** Whether this row says the treatment is a medication: true, false, or **null for "the file
+   *  does not say"**. A pre-2026-08-31 row says it through the Type word itself; a current row says
+   *  it through the Medication column; a row with `Type=treatment` and no Medication column states
+   *  nothing, and the import then leaves the mark alone. */
+  medication: boolean | null;
   /** The MONTHLY limit: a whole number >= 1, or null for none. Meaningful only when
    *  `states.limit`. */
   limit: number | null;
@@ -63,7 +75,13 @@ export interface PrefItem {
 export interface PrefFile {
   items: PrefItem[];
   /** Which optional columns the file carries. An absent column states nothing for any option. */
-  states: { limit: boolean; archived: boolean; watched: boolean; dailyLimit: boolean };
+  states: {
+    limit: boolean;
+    archived: boolean;
+    watched: boolean;
+    dailyLimit: boolean;
+    medication: boolean;
+  };
   /** Five slots for ratings 1 through 5; null where the file names no word for that level. */
   ratingWords: (string | null)[];
   /** null when the file carries no setting row for it. */
@@ -315,8 +333,8 @@ function parsePreferences(
 ): ImportParse {
   if (!headers.includes('Type'))
     return fail([
-      'Row 1: a Preferences file needs a Type column. It holds each option’s type (symptom, ' +
-        'medication, remedy, or factor), the level for a rating row, and the key for a setting row.',
+      `Row 1: a Preferences file needs a Type column. It holds each option’s type ` +
+        `(${CURRENT_TYPES}), the level for a rating row, and the key for a setting row.`,
     ]);
 
   const stated = readPreferenceRows(rows);
@@ -325,7 +343,6 @@ function parsePreferences(
 
   const items: PrefItem[] = [];
   const rowByKey = new Map<string, number>(); // type + folded label -> the row that claimed it
-  const treatmentRowByLabel = new Map<string, { row: number; type: ChipType }>();
 
   for (const it of stated.items) {
     const label = sanitizeLabel(it.label);
@@ -335,14 +352,17 @@ function parsePreferences(
     }
     const typeRaw = (it.type ?? '').toLowerCase();
     if (!typeRaw) {
-      err(it.row, 'Type', 'every option needs a type. Expected symptom, medication, remedy, or factor.');
+      err(it.row, 'Type', `every option needs a type. Expected ${CURRENT_TYPES}.`);
       continue;
     }
-    if (!ITEM_TYPES.includes(typeRaw as ChipType)) {
-      err(it.row, 'Type', `expected symptom, medication, remedy, or factor, got “${it.type}”.`);
+    if (!ITEM_TYPES.includes(typeRaw)) {
+      err(it.row, 'Type', `expected ${CURRENT_TYPES}, got “${it.type}”.`);
       continue;
     }
-    const type = typeRaw as ChipType;
+    // The retired words normalize here, so everything downstream sees one treatment type. That
+    // also retires the old medication-vs-remedy name clash: two rows naming the same treatment
+    // now collide on the ordinary duplicate check below, with a clearer message.
+    const { type } = fromLegacyType(typeRaw);
     const folded = label.toLowerCase();
 
     const dupe = rowByKey.get(`${type}:${folded}`);
@@ -350,25 +370,11 @@ function parsePreferences(
       err(it.row, 'Label', `“${label}” is already listed as a ${type} on row ${dupe}. Each option can appear once.`);
       continue;
     }
-    // A medication and a remedy can’t share a name: entries store the bare treatment name, so
-    // nothing could tell the two apart afterwards. The app refuses this pairing, so a file
-    // holding both would apply into a state the app itself won’t allow.
-    if (type === 'medication' || type === 'remedy') {
-      const other = treatmentRowByLabel.get(folded);
-      if (other && other.type !== type) {
-        err(
-          it.row,
-          'Type',
-          `“${label}” is a ${type} here and a ${other.type} on row ${other.row}. A medication and a remedy can’t share a name.`
-        );
-        continue;
-      }
-      treatmentRowByLabel.set(folded, { row: it.row, type });
-    }
     rowByKey.set(`${type}:${folded}`, it.row);
     items.push({
       label,
       type,
+      medication: type === 'treatment' ? it.medication : null,
       limit: it.limit,
       dailyLimit: it.dailyLimit,
       archived: it.archived,

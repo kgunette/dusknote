@@ -89,7 +89,12 @@ describe('parseTabs fills the pull path defaults', () => {
     expect(s.patientName).toBe('A Name');
   });
 
-  it('keeps a limit only on a medication, and watching only on a factor', () => {
+  it('reads a PRE-v9 sheet, the retired type words and all, and marks the medications', () => {
+    // The most important test here: this is the shape every sheet in the world is written in
+    // until its device next backs up. `medication` and `remedy` were retired as type words on
+    // 2026-08-31; the reader must go on understanding them forever or a real person's app stops
+    // loading their own options. A limit still only survives on a medication, and watching only
+    // on a factor.
     const s = parseTabs({
       Preferences: prefTab([
         ['item', 'Sumatriptan', 'medication', '10', '', ''],
@@ -97,14 +102,28 @@ describe('parseTabs fills the pull path defaults', () => {
         ['item', 'Poor sleep', 'factor', '', '', 'watched'],
       ]),
     });
-    expect(s.vocab[0]).toEqual({ label: 'Sumatriptan', type: 'medication', limit: 10, dailyLimit: null, archived: false, watched: false });
-    expect(s.vocab[1]).toEqual({ label: 'Hot shower', type: 'remedy', limit: null, dailyLimit: null, archived: false, watched: false });
+    expect(s.vocab[0]).toEqual({ label: 'Sumatriptan', type: 'treatment', medication: true, limit: 10, dailyLimit: null, archived: false, watched: false });
+    expect(s.vocab[1]).toEqual({ label: 'Hot shower', type: 'treatment', medication: false, limit: null, dailyLimit: null, archived: false, watched: false });
     expect(s.vocab[2]).toEqual({ label: 'Poor sleep', type: 'factor', limit: null, dailyLimit: null, archived: false, watched: true });
   });
 
-  it('reads an untyped item as a remedy, which only the pull path does', () => {
+  it('reads a v9 sheet, where Type says treatment and a Medication column carries the mark', () => {
+    const s = parseTabs({
+      Preferences: [
+        ['Kind', 'Label', 'Type', 'Medication', 'Limit', 'Archived', 'Watched', 'DailyLimit'],
+        ['item', 'Sumatriptan', 'treatment', 'medication', '10', '', '', '2'],
+        ['item', 'Hot shower', 'treatment', '', '', '', '', ''],
+      ],
+    });
+    expect(s.vocab[0]).toMatchObject({ type: 'treatment', medication: true, limit: 10, dailyLimit: 2 });
+    expect(s.vocab[1]).toMatchObject({ type: 'treatment', medication: false, limit: null, dailyLimit: null });
+  });
+
+  it('reads an untyped item as an UNMARKED treatment, which only the pull path does', () => {
+    // A pull is recovery, so an unreadable type asserts nothing rather than guessing a drug.
     const s = parseTabs({ Preferences: prefTab([['item', 'Something', '', '', '', '']]) });
-    expect(s.vocab[0].type).toBe('remedy');
+    expect(s.vocab[0].type).toBe('treatment');
+    expect(s.vocab[0].medication).toBe(false);
   });
 });
 
@@ -126,22 +145,43 @@ describe('the daily limit column', () => {
     const out = roundTrip({
       ...emptySnapshot,
       vocab: [
-        { label: 'Sumatriptan', type: 'medication', limit: 10, dailyLimit: 2, archived: false },
+        { label: 'Sumatriptan', type: 'treatment', medication: true, limit: 10, dailyLimit: 2, archived: false },
       ],
       ratingWords: [...RATING_WORDS],
     });
     expect(out.vocab[0]).toMatchObject({ label: 'Sumatriptan', limit: 10, dailyLimit: 2 });
   });
 
-  it('writes the column into the header, so a person reading the sheet can see it', () => {
+  it('writes both new columns into the header, so a person reading the sheet can see them', () => {
     const prefs = buildTabs(emptySnapshot).find((t) => t.title === 'Preferences');
     expect(prefs?.values[0]).toContain('DailyLimit');
+    expect(prefs?.values[0]).toContain('Medication');
+  });
+
+  it('writes Type=treatment and marks the medications in their own column', () => {
+    const prefs = buildTabs({
+      ...emptySnapshot,
+      vocab: [
+        { label: 'Sumatriptan', type: 'treatment', medication: true, limit: 10, archived: false },
+        { label: 'Hot shower', type: 'treatment', medication: false, limit: null, archived: false },
+      ],
+      ratingWords: [...RATING_WORDS],
+    }).find((t) => t.title === 'Preferences');
+    const head = prefs!.values[0];
+    const cell = (row: string[], name: string) => row[head.indexOf(name)];
+    const rows = prefs!.values.filter((r) => r[0] === 'item');
+    expect(cell(rows[0], 'Type')).toBe('treatment');
+    expect(cell(rows[0], 'Medication')).toBe('medication');
+    expect(cell(rows[1], 'Type')).toBe('treatment');
+    expect(cell(rows[1], 'Medication')).toBe('');
+    // The retired word is written nowhere.
+    expect(JSON.stringify(prefs!.values)).not.toContain('remedy');
   });
 
   it('keeps a daily limit off anything that is not a medication', () => {
     const out = roundTrip({
       ...emptySnapshot,
-      vocab: [{ label: 'Hot shower', type: 'remedy', limit: null, dailyLimit: 3, archived: false }],
+      vocab: [{ label: 'Hot shower', type: 'treatment', medication: false, limit: null, dailyLimit: 3, archived: false }],
       ratingWords: [...RATING_WORDS],
     });
     expect(out.vocab[0].dailyLimit).toBeNull();

@@ -2,7 +2,7 @@ import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { ChipDef, Entry, Gap, MedEvent, TrackedMed, VocabItem } from './types';
 import { SEED_CHIPS, RATING_WORDS } from './seeds';
 import { setConditionNoun } from './config';
-import { reconcileOrphans, repairVocab, vocabFromLegacy } from './vocab';
+import { migrateVocabTypes, reconcileOrphans, repairVocab, vocabFromLegacy } from './vocab';
 import { mergeEntries, mergeEventsByContent, mergeGapsByContent } from './google/reconcile';
 
 interface AppDB extends DBSchema {
@@ -184,10 +184,15 @@ export async function reconcileMerge(data: {
 export async function ensureVocab(): Promise<VocabItem[]> {
   const existing = await prefs.vocab();
   if (Array.isArray(existing)) {
+    // Bring the two retired type words onto the current model first. A phone that is already set
+    // up never pulls from the sheet, so this is the only place its stored list gets converted;
+    // without it every treatment vanishes from the screens. Lossless and idempotent.
+    const migrated = migrateVocabTypes(existing);
     // Self-heal an old orphan-scan bug: drop any bogus archived duplicates. When something
     // was removed, persist so the corrected vocab re-pushes and rewrites the sheet's Preferences.
-    const repaired = repairVocab(existing);
-    if (repaired.length !== existing.length) await prefs.setVocab(repaired);
+    const base = migrated ?? existing;
+    const repaired = repairVocab(base);
+    if (migrated || repaired.length !== base.length) await prefs.setVocab(repaired);
     return repaired;
   }
   const [chips, meds, entries] = await Promise.all([

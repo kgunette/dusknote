@@ -1,4 +1,13 @@
-export type ChipType = 'medication' | 'remedy' | 'factor' | 'symptom';
+/**
+ * What kind of thing an option is. **A TREATMENT IS ONE KIND (2026-08-31), not two.** This used to
+ * read 'medication' | 'remedy', which made two siblings out of a whole and a part: a medication is
+ * a subset of the things you try, not the opposite of them. Whether a treatment is a medication is
+ * now a MARK on it (`VocabItem.medication`), not a different kind of thing.
+ *
+ * The sheet's own `Type` column carries these words, and its reader still accepts the two old ones
+ * so a tab written before this change keeps loading (see `serialize.ts`).
+ */
+export type ChipType = 'treatment' | 'factor' | 'symptom';
 
 export interface ChipDef {
   label: string;
@@ -85,6 +94,11 @@ export interface StatsFilter {
 export interface VocabItem {
   label: string;
   type: ChipType;
+  /** Treatments only: this one is a medication. The pill on its row in Log options. Only a marked
+   *  treatment can carry a limit, and only a marked one with a monthly limit reaches Stats and the
+   *  report. Nothing marks itself: a treatment rebuilt from your history arrives unmarked, the way
+   *  a factor arrives unwatched. */
+  medication?: boolean;
   /** The MONTHLY limit: days used in a month, not doses. Only meaningful for medications; always
    *  null otherwise. A monthly limit is also what makes a medication show a dose row in
    *  Stats/Report (confirmed 2026-07-05): no monthly limit = log-only. Named `limit` rather than
