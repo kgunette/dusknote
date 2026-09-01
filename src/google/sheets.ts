@@ -8,14 +8,21 @@
 
 import { APP_NAME } from '../config';
 import { getToken } from './auth';
-import { headerOnlyTabs, parseTabs, type SyncSnapshot, TAB_ORDER, type TabValues } from './serialize';
+import {
+  headerOnlyTabs,
+  LEGACY_OPTIONS_TAB,
+  parseTabs,
+  type SyncSnapshot,
+  TAB_ORDER,
+  type TabValues,
+} from './serialize';
 import { decideSheet, type SheetCandidate } from './sheetChoice';
 
 const SHEET_NAME = APP_NAME;
 const SHEET_ID_KEY = 'dn_sheet_id';
 const SHEET_URL_KEY = 'dn_sheet_url';
 const ENTRIES_GID_KEY = 'dn_sheet_entries_gid'; // so "Open the sheet" lands on Entries, not the last-viewed tab
-const TABS_MIGRATED_KEY = 'dn_tabs_v2'; // one-time: rename Coverage->Gaps + reorder tabs to TAB_ORDER
+const TABS_MIGRATED_KEY = 'dn_tabs_v3'; // one-time: rename Coverage->Gaps and Preferences->LogOptions, reorder to TAB_ORDER
 
 /** Thrown when Google rejects the token (401). Caller surfaces a Reconnect prompt. */
 export const AUTH_REJECTED = 'AUTH_REJECTED';
@@ -64,15 +71,21 @@ export function planTabLayout(current: TabProps[]): {
   const requests: object[] = [];
   const byTitle = new Map(current.map((t) => [t.title, { ...t }]));
 
-  // Rename the old Coverage tab (preserves its data) if the new Gaps tab isn't there yet.
-  const coverage = byTitle.get('Coverage');
-  if (coverage && !byTitle.has('Gaps')) {
+  // Rename a tab that has been renamed in the app, PRESERVING its rows. This has to run before
+  // the add-missing loop below, or that loop would create an empty tab under the new name and the
+  // rename would never fire, leaving the data stranded in the old one. Guarded on the new name not
+  // already existing, so it can never clobber a tab that is already there.
+  const renameTab = (from: string, to: string) => {
+    const old = byTitle.get(from);
+    if (!old || byTitle.has(to)) return;
     requests.push({
-      updateSheetProperties: { properties: { sheetId: coverage.sheetId, title: 'Gaps' }, fields: 'title' },
+      updateSheetProperties: { properties: { sheetId: old.sheetId, title: to }, fields: 'title' },
     });
-    byTitle.set('Gaps', { ...coverage, title: 'Gaps' });
-    byTitle.delete('Coverage');
-  }
+    byTitle.set(to, { ...old, title: to });
+    byTitle.delete(from);
+  };
+  renameTab('Coverage', 'Gaps'); // pre-2026-07
+  renameTab(LEGACY_OPTIONS_TAB, 'LogOptions'); // pre-2026-09-01
 
   // Add any tab that's missing entirely (e.g. one was manually deleted).
   const addedTitles: string[] = [];

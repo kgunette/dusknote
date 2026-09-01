@@ -173,7 +173,14 @@ export function useGoogleSync(
     }
   }, [snapshot, currentHash, reconciled, onImported]);
 
-  const ready = !error && isConnected() && hasValidToken() && !preparing && sheetUrl != null;
+  // `!needsSheetSetup()` matters as much as the rest (added 2026-09-01). Sync addresses tabs by
+  // NAME, so a read issued before the layout migration has renamed them asks Google for a range
+  // that does not exist and the whole batch is rejected. On a device that already had a sheet url,
+  // `preparing` stays false while that migration is still in flight, so nothing else here was
+  // holding sync back. Gating on the migration itself closes the race for every future tab change,
+  // not just this one.
+  const ready =
+    !error && isConnected() && hasValidToken() && !preparing && sheetUrl != null && !needsSheetSetup();
 
   // Load the durable reconciled flag from IndexedDB (co-located with the data) on mount, so the
   // decision below waits for the real value instead of assuming not-reconciled.

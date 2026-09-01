@@ -172,3 +172,60 @@ describe('refusing a Preferences file', () => {
     expect(p.items).toHaveLength(2);
   });
 });
+
+// The blank templates ship in docs/templates/. A header the app would reject is a bad thing to
+// hand someone, so the Preferences one is checked against the parser itself. (Like the other three
+// templates it is a header to fill in, not a file to import as-is: an empty file has nothing to
+// import and the app says so.)
+describe('the blank Preferences template', () => {
+  const TEMPLATE = 'Kind,Label,Type,Medication,Limit,DailyLimit,Archived,Watched';
+
+  it('carries no column the app does not know', () => {
+    const r = parseImportCsv(`${TEMPLATE}\nitem,Coffee,treatment,,,,,`);
+    expect(r.errors).toEqual([]);
+    expect(r.data?.kind).toBe('preferences');
+  });
+
+  it('states every optional setting, so a filled-in template says what it means', () => {
+    const r = parseImportCsv(`${TEMPLATE}\nitem,Sumatriptan,treatment,medication,10,2,,`);
+    if (r.data?.kind !== 'preferences') throw new Error('not read as a Preferences file');
+    expect(r.data.prefs.states).toEqual({
+      limit: true,
+      archived: true,
+      watched: true,
+      dailyLimit: true,
+      medication: true,
+    });
+    expect(r.data.prefs.items[0]).toMatchObject({
+      label: 'Sumatriptan',
+      type: 'treatment',
+      medication: true,
+      limit: 10,
+      dailyLimit: 2,
+    });
+  });
+});
+
+// The conversion prompt asks an AI for a marks-only file: Kind, Label, Type, Medication and
+// nothing else. Omitting the other columns is the point, so it cannot overwrite a limit, an
+// archive state or a watched factor. This pins that the app reads it that way.
+describe('a marks-only log options file', () => {
+  it('is accepted, and states the mark and nothing else', () => {
+    const r = parseImportCsv(
+      ['Kind,Label,Type,Medication', 'item,Sumatriptan,treatment,medication', 'item,Coffee,treatment,'].join('\n')
+    );
+    expect(r.errors).toEqual([]);
+    if (r.data?.kind !== 'preferences') throw new Error('not read as a Preferences file');
+    expect(r.data.prefs.states).toEqual({
+      medication: true,
+      limit: false,
+      dailyLimit: false,
+      archived: false,
+      watched: false,
+    });
+    expect(r.data.prefs.items.map((i) => [i.label, i.medication])).toEqual([
+      ['Sumatriptan', true],
+      ['Coffee', false],
+    ]);
+  });
+});

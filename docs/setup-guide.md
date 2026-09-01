@@ -127,10 +127,10 @@ Open it from the home screen and sign in to Google once there too, since the ins
 You make Dusknote yours inside the app itself: the word for what you track, your rating words, the name on your report. Those choices are saved with your data, so they back up and populate on a new phone.
 
 - **Log options → What you track:** the word for the thing you log ("episode", "headache", "flare", your call). The whole app re-words itself based on what makes most sense for you.
-- **Log options:** rename the five rating words, add your medications and their monthly limits, your symptoms, remedies, and other factors. Tap the eye on a factor to watch it.
+- **Log options:** rename the five rating words, and add your symptoms, treatments, and other factors. Tap the pill next to a treatment to mark it a medication, and give a medication a limit if you want it counted in Stats and your report. Tap the eye on a factor to watch it.
 - **Settings → Your name:** printed on the exportable report, optional, and only if you want it there.
 
-The [User Manual](using-dusknote.md) explains what each feature means and why you'd use it. If you have history in another app or a journal, the [import guide](import-guide.md) will walk you through backfilling historical information.
+The [User Manual](using-dusknote.md) explains what each feature means and why you'd use it. **If you have history in another app or a journal, import it before doing the list above.** The [import guide](import-guide.md) walks you through it, and importing puts your treatment, symptom and factor names onto your lists for you, so all that's left is marking your medications.
 
 Feel free to move your Dusknote spreadsheet and your "Dusknote backups" folder anywhere in your Google Drive. It's smoothest to leave them named as they are, but nothing is lost if you rename the sheet: a new phone will simply ask you to confirm which sheet to use.
 

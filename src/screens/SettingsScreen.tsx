@@ -13,7 +13,7 @@ import { parseImportCsv, type PrefFile } from '../importCsv';
 // stale cached build, which a service worker can do for a surprisingly long time.
 declare const __BUILD__: string;
 
-type ImportResult = { entries: number; events: number; gaps: number };
+type ImportResult = { entries: number; events: number; gaps: number; options: number };
 
 /** One honest line about the backup, local-save always the reassuring fallback. */
 function backupStatusText(g: GoogleSync): string {
@@ -75,7 +75,7 @@ export function SettingsScreen({
   onPatientName: (name: string) => void;
   onGaps: (g: Gap[]) => void;
   onImport: (data: { entries: Entry[]; events: MedEvent[]; gaps: Gap[] }) => Promise<ImportResult>;
-  /** A Preferences file changes settings you already have, so it goes to the review screen
+  /** A LogOptions file changes settings you already have, so it goes to the review screen
    *  instead of being merged. Nothing has changed at this point. */
   onPrefsFile: (prefs: PrefFile, fileName: string) => void;
   /** Set after the review screen applies, so the confirmation lands where an import's own
@@ -123,14 +123,21 @@ export function SettingsScreen({
         `${r.events} ${r.events === 1 ? 'event' : 'events'}`,
         `${r.gaps} ${r.gaps === 1 ? 'gap' : 'gaps'}`,
       ];
+      // Options the scan added get their own sentence rather than joining the list above: they are
+      // not rows from the file, they are things the app worked out from them, and a person should
+      // be told which is which. Shown only when there are any.
+      const optionsLine =
+        r.options > 0
+          ? ` Added ${r.options} log ${r.options === 1 ? 'option' : 'options'} your history mentions. Mark any medications in Log options.`
+          : '';
       // "Backing up now" is only true when a connected sync can actually run; a device that
       // hasn't connected Google yet (the guide's own order allows importing first) gets the
       // honest tail instead.
       const backingUp = google.phase === 'ready' || google.phase === 'preparing';
       setImportMsg(
-        r.entries + r.events + r.gaps === 0
+        r.entries + r.events + r.gaps + r.options === 0
           ? 'Nothing new to import. It looks like this file is already in.'
-          : `Imported ${parts.join(', ')}. ${backingUp ? 'Backing up now.' : 'It will back up when you connect Google.'}`
+          : `Imported ${parts.join(', ')}.${optionsLine} ${backingUp ? 'Backing up now.' : 'It will back up when you connect Google.'}`
       );
     } catch {
       setImportMsg('Could not read that file. It should be a CSV exported or converted per the import guide.');
@@ -612,9 +619,10 @@ export function SettingsScreen({
         <div className="card col">
           <div className="card-title">Import</div>
           <div className="caption">
-            Import historical records from a CSV file with the same columns as your {APP_NAME}{' '}
-            sheet (an Entries, Events, or Gaps table). Adds to the log (but never replaces), and
-            then backs up to the Google Spreadsheet. A file with any problem imports nothing.
+            Import a CSV with the same columns as your {APP_NAME} sheet: Entries, Events,
+            Gaps, or LogOptions. History is only added to, never replaced. A LogOptions file
+            changes your log options, so you approve every change first. A file with any problem
+            imports nothing.
           </div>
           <input
             ref={fileRef}

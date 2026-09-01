@@ -252,3 +252,36 @@ describe('migrating a stored option list', () => {
     expect(migrateVocabTypes(once!)).toBeNull();
   });
 });
+
+// The scan now runs at IMPORT as well as at reconcile (2026-09-01), so these pin what a first
+// import produces: the names from your history, on the right lists, none of them called a drug.
+describe('what a first import puts on your lists', () => {
+  const att = (t: string) => ({ id: `a-${t}`, time: '08:30', treatment: t, helped: null });
+
+  it('files each label by the field it came from, and marks nothing', () => {
+    const e = entry({
+      symptoms: ['Aura'],
+      factors: ['Barometric drop'],
+      treatments: [att('Rizatriptan'), att('Peppermint oil')],
+    });
+    const out = reconcileOrphans([], [e]);
+    expect(out.map((v) => [v.label, v.type, !!v.medication])).toEqual([
+      ['Aura', 'symptom', false],
+      ['Barometric drop', 'factor', false],
+      ['Rizatriptan', 'treatment', false],
+      ['Peppermint oil', 'treatment', false],
+    ]);
+  });
+
+  it('adds nothing the second time, so re-importing the same file is a no-op', () => {
+    const e = entry({ symptoms: ['Aura'], treatments: [att('Rizatriptan')] });
+    const once = reconcileOrphans([], [e]);
+    expect(reconcileOrphans(once, [e])).toHaveLength(once.length);
+  });
+
+  it('leaves an option the person already marked alone', () => {
+    const mine = vocab('Rizatriptan', 'treatment', { medication: true, limit: 5 });
+    const out = reconcileOrphans([mine], [entry({ treatments: [att('Rizatriptan')] })]);
+    expect(out).toEqual([mine]);
+  });
+});

@@ -20,7 +20,12 @@ export interface SyncSnapshot {
 }
 
 // Human-readable content first (Entries, Events), then Gaps, then machine state (Preferences).
-export const TAB_ORDER = ['Entries', 'Events', 'Gaps', 'Preferences'] as const;
+export const TAB_ORDER = ['Entries', 'Events', 'Gaps', 'LogOptions'] as const;
+
+/** The tab this one used to be called. A sheet written before 2026-09-01 has it, and the tab is
+ *  RENAMED in place on the next sync (planTabLayout), which keeps its rows. Kept as a constant
+ *  because two places need it: the renamer, and the reader that falls back to it. */
+export const LEGACY_OPTIONS_TAB = 'Preferences';
 
 /** Bump whenever the sheet's tab or column layout changes (e.g. renaming a header). The sync's
  *  "did anything change" check hashes the data, which a header-only rename wouldn't alter, so
@@ -35,6 +40,11 @@ export const TAB_ORDER = ['Entries', 'Events', 'Gaps', 'Preferences'] as const;
  *  v8: Preferences gains a DailyLimit column (doses in one day, on Kind=item medication rows),
  *      2026-08-31. Purely additive: an older sheet has no such column, which states nothing and
  *      reads as null, so nothing written before v8 needs converting.
+ *  v10: the tab becomes `LogOptions` (was `Preferences`) and the monthly limit's column becomes
+ *      `MonthlyLimit` (was the bare `Limit`, from when there was only one kind), 2026-09-01. The
+ *      names now match the screen and the code 1:1, which matters because this repo is meant to be
+ *      forked. **Both old names are still read**: the tab is renamed in place on the next sync,
+ *      keeping its rows, and a `Limit` column is accepted wherever `MonthlyLimit` is expected.
  *  v9: A TREATMENT IS ONE KIND, with a mark (2026-08-31). Type writes `treatment` for both, and a
  *      new Medication column carries the mark, following the file's own convention where Archived
  *      holds "archived" and Watched holds "watched". **The reader still accepts the retired
@@ -63,7 +73,7 @@ export const HEADERS: Record<string, string[]> = {
   Gaps: ['Start', 'End', 'Reason'],
   // Machine state that travels to a new phone: one row per vocab item (Kind=item). Kept
   // human-readable — Label/Type spell it out, Limit is a plain number, Archived is a word.
-  Preferences: ['Kind', 'Label', 'Type', 'Medication', 'Limit', 'Archived', 'Watched', 'DailyLimit'],
+  LogOptions: ['Kind', 'Label', 'Type', 'Medication', 'MonthlyLimit', 'DailyLimit', 'Archived', 'Watched'],
 };
 
 /** One readable treatment cell: "06:15 Water → no; 08:30 Ibuprofen → yes". */
@@ -113,18 +123,18 @@ export function buildTabs(s: SyncSnapshot): TabValues[] {
     { title: 'Events', values: [HEADERS.Events, ...eventsAsc.map((ev) => [ev.date, ev.note])] },
     { title: 'Gaps', values: [HEADERS.Gaps, ...gapsAsc.map((g) => [g.start, g.end, g.reason])] },
     {
-      title: 'Preferences',
+      title: 'LogOptions',
       values: [
-        HEADERS.Preferences,
+        HEADERS.LogOptions,
         ...s.vocab.map((v) => [
           'item',
           v.label,
           v.type,
           v.medication ? 'medication' : '',
           v.limit == null ? '' : String(v.limit),
+          v.dailyLimit == null ? '' : String(v.dailyLimit),
           v.archived ? 'archived' : '',
           v.watched ? 'watched' : '',
-          v.dailyLimit == null ? '' : String(v.dailyLimit),
         ]),
         // rating rows: the level sits in the Type column (Kind=rating, Label=word).
         ...s.ratingWords.map((w, i) => ['rating', w, String(i + 1), '', '', '', '', '']),
@@ -264,7 +274,9 @@ export function readPreferenceRows(rows: string[][]): StatedPreferences {
       const n = Number(raw);
       return raw !== '' && Number.isFinite(n) && n >= 1 ? Math.round(n) : null;
     };
-    const limit = readLimit('Limit');
+    // `MonthlyLimit` is the current name; `Limit` is what sheets written before 2026-09-01 use,
+    // from when a medication had only one kind of limit. Accept either, write the new one.
+    const limit = readLimit(idx['MonthlyLimit'] != null ? 'MonthlyLimit' : 'Limit');
     const dailyLimit = readLimit('DailyLimit');
     if (kind === 'item') {
       // The mark, from whichever of the two shapes this file is written in.
@@ -309,7 +321,7 @@ export function readPreferenceRows(rows: string[][]): StatedPreferences {
   return {
     items,
     columns: {
-      limit: idx['Limit'] != null,
+      limit: idx['MonthlyLimit'] != null || idx['Limit'] != null,
       archived: idx['Archived'] != null,
       watched: idx['Watched'] != null,
       dailyLimit: idx['DailyLimit'] != null,
@@ -360,7 +372,9 @@ export function parseTabs(raw: Record<string, string[][]>): SyncSnapshot {
   // recovery, so a missing rating row or setting row means "use the app's own default": a phone
   // being restored has nothing of its own to keep. The Preferences IMPORT wants the opposite and
   // reads the same table through readPreferenceRows directly.
-  const stated = readPreferenceRows(raw.Preferences ?? []);
+  // Accept either tab name. A sheet is renamed to LogOptions on the next sync, but this must read
+  // one that has not been renamed yet, and any older export handed to it.
+  const stated = readPreferenceRows(raw.LogOptions ?? raw[LEGACY_OPTIONS_TAB] ?? []);
   const vocab: VocabItem[] = stated.items.map((it) => {
     // fromLegacyType understands both shapes: a pre-v9 `medication`/`remedy` word, and v9's
     // `treatment`. Anything unrecognized becomes an unmarked treatment, which asserts nothing.

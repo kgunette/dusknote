@@ -1,8 +1,10 @@
 # Bringing your historical data into Dusknote
 
-If you've been tracking in another app, a spreadsheet, or a journal, that history can come with you into Dusknote. Dusknote imports CSV files whose columns are exactly the columns of its own Google Sheet, so an import file looks just like your data already does: readable, checkable, and fixable in any spreadsheet app.
+If you've been tracking in another app, a spreadsheet, or a journal, that history can come with you into Dusknote. Dusknote imports CSV files whose columns are exactly the columns of its own Google Sheet, so an import file looks just like your data already does: readable, checkable, and fixable in Google Sheets or a text editor.
 
-An import always **adds**; it never replaces or deletes anything. Importing the same file twice is safe, because rows the app already has are recognized and skipped. And a file with any problem imports **nothing**: the app rejects it whole and tells you the exact row and column of each problem, so a half-broken file can never mix bad rows into your record or reach your sheet.
+There are two kinds of import file and they behave differently. Your history (entries, events, gaps) is only ever added to: rows the app already has are recognized and skipped, so importing the same file twice is safe and nothing you have is replaced. Your log options can be changed by a file import, so the app lists every change first and waits for you to Apply.
+
+In both cases, a file with any problem imports nothing, and shows you what is wrong. The app shows an error message, and tells you the exact row and column of each problem, so that you can fix it before trying to re-import it again.
 
 ## Three ways to format the historical data for import
 
@@ -11,15 +13,23 @@ An import always **adds**; it never replaces or deletes anything. Importing the 
 - **You have notes, a journal, or are rebuilding from memory:** the same prompt handles input from a variety of sources; it will ask questions rather than make assumptions about it.
 
 **Manually, without AI**
-- **You'd rather assemble it yourself:** build the file manually in any spreadsheet app, following the exact format below. The blank templates give you each file's headers ready-made; fill in your rows, save as CSV, and import. No AI needed.
+- **You'd rather assemble it yourself:** build the file manually in Google Sheets or a text editor, following the exact format below. The blank templates give you each file's headers ready-made; fill in your rows, save as CSV, and import. No AI needed.
 
 The Import option in the app can be found at **Settings → Import CSV file**.
 
 **A note on privacy, and using AI to format the import:** your health history is sensitive, and if you opt to use AI, that means pasting this sensitive data into an AI chat. Use an AI assistant only if you're comfortable with it, or assemble the file manually instead. This is the only place in Dusknote's guides where personal data would get entered into a chat window, and it's your decision to make.
 
+## What to do first
+
+If you have any tracking history to import, do that import first. The app reads the treatment, symptom and factor names out of your entries and puts the names on your log options lists on your device. Everything will be imported unmarked. After the import, you can then mark any of your medications under Settings → Log options by tapping the pill next to each one. Add a limit to any you want counted in Stats and your report.
+
+If you also have a log options file, import that too and it sets the medication marks and limits for you. Either file can be imported first, the result is the same.
+
+If you have no history to import, set your options up manually at Settings → Log options.
+
 ## The file format
 
-You can import three kinds of files: entries, events, or gaps. You don't have to tell the app which one you're giving it; it reads the first row of the file (the column names) and recognizes the kind from there. Only the columns listed as required need to exist; leave out any others you have no data for.
+You can import four kinds of file: entries, events, gaps, or your log options. You don't have to tell the app which one you're giving it; it reads the first row of the file (the column names) and recognizes the kind from there. Only the columns listed as required need to exist; leave out any others you have no data for.
 
 **Entries** (template: [entries-template.csv](templates/entries-template.csv))
 
@@ -40,6 +50,23 @@ You can import three kinds of files: entries, events, or gaps. You don't have to
 
 **Gaps** (template: [gaps-template.csv](templates/gaps-template.csv)): `Start` and `End` dates (required), `Reason` (optional). A gap marks a range you know you weren't tracking, so missing time is never mistaken for good time.
 
+**Log options** (template: [logoptions-template.csv](templates/logoptions-template.csv)). This is the one file that can change something you already have, so the app lists every change and waits for you to Apply before anything happens.
+
+The rule: **anything the file has a setting for, it overwrites. Anything it doesn't have a setting for, nothing changes.** Leave out a whole column and the app keeps its own answer for every row.
+
+| Column     | Rule                                                                                                                     |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Kind       | Required. `item` for an option, `rating` for a rating word, `setting` for the word you track or the name on your report.  |
+| Label      | Required. The option's name; for a `rating` row the word itself; for a `setting` row the value.                           |
+| Type       | Required. On an `item` row: `symptom`, `treatment`, or `factor`. On a `rating` row: the level, 1 to 5. On a `setting` row: `noun` for the word you track, `name` for the report name. |
+| Medication | Optional. The word `medication` on a treatment that is one, blank on any that isn't.                                      |
+| MonthlyLimit | Optional. A monthly limit: a whole number of days, 1 or more. Only on a medication.                                   |
+| DailyLimit | Optional. A daily limit: a whole number of doses, 1 or more. Only on a medication.                                       |
+| Archived   | Optional. The word `archived`, or blank.                                                                                 |
+| Watched    | Optional. The word `watched` on a factor, or blank.                                                                      |
+
+Older files still import. Before September 2026 the Type column carried `medication` and `remedy` instead of `treatment` plus a Medication column, the monthly limit's column was called `Limit`, and the tab in your sheet was called `Preferences`. The app reads all of those, and renames the tab in your own sheet the next time it syncs, keeping its rows.
+
 Limits: a file can hold up to 20,000 rows and 2 MB. Bigger histories import fine as several files.
 
 **Whatever spreadsheet you use, check the dates before you import.** Excel, Numbers, and Google Sheets all like to rewrite a date like `2026-03-05` into a shorter local form like `3/5/26`, and Dusknote rejects the whole file when they do. Set the Date column's format to `yyyy-mm-dd` before you save the file. To verify that the dates are formatted correctly, open the saved file in TextEdit on a Mac or Notepad on Windows: those show the file exactly as it is, without applying formatting of their own.
@@ -48,17 +75,19 @@ Limits: a file can hold up to 20,000 rows and 2 MB. Bigger histories import fine
 
 The message lists each problem by row and column, like `Row 14, Date: expected a date like 2026-03-05, got "3/5/26".` It's written to be pasted straight back to whatever produced the file: give it to your assistant and ask for a corrected file, or find row 14 yourself in a spreadsheet app. Nothing was imported, so there's nothing to undo; fix and import again.
 
-## What you still have to set up yourself
+## What import doesn't pull in
 
-Import brings your history: your entries, events, and gaps. It doesn't bring your personalization. After importing, go to **Settings → Log options** and add the things you track: your medications and how many days a month you can take each one, your symptoms, your remedies, the other factors you want to keep an eye on, the words you want for the 1 to 5 ratings, and the word for what you're tracking (episode, headache, flare). Medication is only counted once you've given it a monthly limit, so this will impact how your Stats are reflected.
+Importing your history includes pulling in any names of treatments, symptoms, or factors mentioned in the history. It doesn't pull in which treatments are medications, what their limits are, which factors you want watched, the words you want for the 1 to 5 ratings, and the word for what you're tracking. Those live at Settings → Log options.
 
-When you log an entry, you pick from your own lists: your medications, your symptoms, and so on. Your imported history may mention things that aren't on those lists, like a medication you stopped taking years ago. The app adds each of them so your old entries still make sense, but files them under **Archived** instead of putting them on the lists you tap every day. Anything you still use, you can move back to your active list with one tap.
+If you have a log options file, this is an exception. It carries all of those details, and it will require you to review and approve the import before applying the changes.
 
 Important note: changing the Google Sheet by hand won't change the information in the app. The app is where your data lives, and its next backup will overwrite whatever you typed into the sheet.
 
 ## The historical data conversion prompt
 
 Paste this into your AI chat, then provide your export or notes when it asks.
+
+The prompt asks your assistant to mark which treatments are drugs, because it can tell and the app can't. Nothing it marks takes effect until you've seen it: the app lists every change and waits for you to Apply.
 
 ```
 I need my health-tracking history converted into the CSV import format of
@@ -75,7 +104,7 @@ Data-integrity rules, which outrank everything else:
 - Convert formats only: dates to YYYY-MM-DD, times to 24-hour HH:MM. Never
   shift, reinterpret, or "clean up" the underlying facts.
 
-The format. A file is one of three kinds, identified by its header row, and
+The format. A file is one of four kinds, identified by its header row, and
 each kind is its own file:
 
 1. Entries. Header exactly:
@@ -96,11 +125,23 @@ each kind is its own file:
    Date,Note
 3. Gaps (ranges I wasn't tracking). Header exactly:
    Start,End,Reason
+4. Log options: which of the treatments are medications. Header exactly:
+   Kind,Label,Type,Medication
+   - One row per distinct treatment named in the entries file, spelled
+     identically to how it appears there.
+   - Kind: always "item". Type: always "treatment".
+   - Medication: the word "medication" on a treatment that is a drug,
+     prescription or over-the-counter. Blank on everything else: a hot
+     shower, a nap, coffee, rest, an ice pack.
+   - Use only those four columns. Never add Limit, DailyLimit, Archived or
+     Watched, even if my data mentions a dose limit: those are medical
+     facts about me and I set them myself.
 
 Output real CSV in a code block, one block per file, no example rows, no
 commentary inside the block. Quote any field containing a comma. If my data
-spans entries and events, produce two files. Suggest a Gaps file if my data
-shows obvious untracked stretches, but let me decide.
+spans entries and events, produce two files. If my data names any
+treatments, produce the log options file too. Suggest a Gaps file if my
+data shows obvious untracked stretches, but let me decide.
 
 If the app rejects the file, I'll paste its error message back to you; it
 names each problem's row and column. Fix only what it names.

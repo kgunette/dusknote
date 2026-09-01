@@ -153,7 +153,7 @@ describe('the daily limit column', () => {
   });
 
   it('writes both new columns into the header, so a person reading the sheet can see them', () => {
-    const prefs = buildTabs(emptySnapshot).find((t) => t.title === 'Preferences');
+    const prefs = buildTabs(emptySnapshot).find((t) => t.title === 'LogOptions');
     expect(prefs?.values[0]).toContain('DailyLimit');
     expect(prefs?.values[0]).toContain('Medication');
   });
@@ -166,7 +166,7 @@ describe('the daily limit column', () => {
         { label: 'Hot shower', type: 'treatment', medication: false, limit: null, archived: false },
       ],
       ratingWords: [...RATING_WORDS],
-    }).find((t) => t.title === 'Preferences');
+    }).find((t) => t.title === 'LogOptions');
     const head = prefs!.values[0];
     const cell = (row: string[], name: string) => row[head.indexOf(name)];
     const rows = prefs!.values.filter((r) => r[0] === 'item');
@@ -210,5 +210,41 @@ describe('the daily limit column', () => {
     });
     expect(s.vocab[0].dailyLimit).toBeNull();
     expect(s.vocab[1].dailyLimit).toBeNull();
+  });
+});
+
+// The two renames of 2026-09-01. Both old names must go on reading forever: a sheet is renamed on
+// its next sync, but an export taken before then can be imported at any point in the future.
+describe('reading a sheet written before the rename', () => {
+  it('reads a Preferences tab with a bare Limit column', () => {
+    const s = parseTabs({
+      Preferences: [
+        ['Kind', 'Label', 'Type', 'Limit', 'Archived', 'Watched'],
+        ['item', 'Sumatriptan', 'medication', '10', '', ''],
+      ],
+    });
+    expect(s.vocab[0]).toMatchObject({ label: 'Sumatriptan', medication: true, limit: 10 });
+  });
+
+  it('prefers the new tab when a sheet somehow carries both', () => {
+    const s = parseTabs({
+      LogOptions: [
+        ['Kind', 'Label', 'Type', 'Medication', 'MonthlyLimit'],
+        ['item', 'Current', 'treatment', 'medication', '5'],
+      ],
+      Preferences: [
+        ['Kind', 'Label', 'Type', 'Limit'],
+        ['item', 'Stale', 'medication', '9'],
+      ],
+    });
+    expect(s.vocab.map((v) => v.label)).toEqual(['Current']);
+  });
+
+  it('writes the new tab name and the new column name', () => {
+    const prefs = buildTabs(emptySnapshot).find((t) => t.title === 'LogOptions');
+    expect(prefs).toBeDefined();
+    expect(prefs!.values[0]).toEqual([
+      'Kind', 'Label', 'Type', 'Medication', 'MonthlyLimit', 'DailyLimit', 'Archived', 'Watched',
+    ]);
   });
 });
