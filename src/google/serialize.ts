@@ -41,7 +41,7 @@ export const TAB_ORDER = ['Entries', 'Events', 'Gaps', 'Preferences'] as const;
  *      `medication` and `remedy` type words**, so a tab or an export written before v9 keeps
  *      loading untouched; a sheet picks up the new shape on its next backup, which rewrites that
  *      tab from scratch as every backup does. Nobody has to do anything. */
-export const SHEET_SCHEMA_VERSION = 7;
+export const SHEET_SCHEMA_VERSION = 9;
 
 export const HEADERS: Record<string, string[]> = {
   // Entries is the doctor-readable table; column order is locked.

@@ -85,7 +85,7 @@ Unmarking a treatment as a medication drops any limits associated with it, and t
 
 A medication can have either no limit, a daily limit, a monthly limit, or both daily and monthly limits.
 
-A monthly limit counts days used, not doses. Two doses on one day is counted as one day. It addresses the question, "am I reaching for this too often?", and clinical thresholds are often assessed in days of use per month. Setting one counts a medication, and ensures that the count appears in Stats and the report. A month that goes over reads "12 of 10" in amber. A medication without a monthly limit stays log-only.
+A monthly limit counts days used, not doses. Two doses on one day is counted as one day. It addresses the question, "am I reaching for this too often?", and clinical thresholds are often assessed in days of use per month. Setting one counts a medication, and ensures that the count appears in Stats and the report. It counts your whole history, not just from the day you set it. A month that goes over reads "12 of 10" in amber. A medication without a monthly limit stays log-only.
 
 A daily limit counts doses in one day. It appears in an active log entry as you edit it, on the treatment's card, as "2 of 2 today". The count covers your whole day, so a dose from an earlier entry still counts. It's the same "too often" question in the moment, for the day.
 
