@@ -4,7 +4,6 @@ import {
   HEADERS,
   isEmptySnapshot,
   parseTabs,
-  SHEET_SCHEMA_VERSION,
   type SyncSnapshot,
   TAB_ORDER,
 } from './serialize';
@@ -257,29 +256,21 @@ describe('reading a sheet written before the rename', () => {
   });
 });
 
-// A GUARD, not a description. SHEET_SCHEMA_VERSION is what makes a header change count as
-// something worth pushing: without a bump, a device whose DATA is unchanged never re-writes its
-// sheet, so the new columns never appear. That has now been missed twice in two days (the
-// DailyLimit column, then the LogOptions/MonthlyLimit rename), both times by writing the new
-// version into a comment and not into the constant.
-//
-// So: change a header row, and this test fails until you bump the version too. Update both
-// together, deliberately.
-describe('the sheet schema version tracks the headers', () => {
-  it('fails when a header changes without a version bump', () => {
-    expect({ version: SHEET_SCHEMA_VERSION, headers: HEADERS }).toEqual({
-      version: 10,
-      headers: {
-        Entries: [
-          'Date', 'Start', 'Rating', 'Rating word', 'Symptoms', 'Treatments', 'Other factors',
-          'Notes', 'Source', 'ID', 'Logged at', 'Updated at',
-        ],
-        Events: ['Date', 'Note'],
-        Gaps: ['Start', 'End', 'Reason'],
-        LogOptions: [
-          'Kind', 'Label', 'Type', 'Medication', 'MonthlyLimit', 'DailyLimit', 'Archived', 'Watched',
-        ],
-      },
+// The sheet's shape, written down. This used to guard a hand-maintained version number; the sync
+// now compares the headers themselves, so there is no step left to forget and this is simply a
+// record of the current layout that makes a change to it deliberate.
+describe('the sheet layout', () => {
+  it('is the shape the app writes', () => {
+    expect(HEADERS).toEqual({
+      Entries: [
+        'Date', 'Start', 'Rating', 'Rating word', 'Symptoms', 'Treatments', 'Other factors',
+        'Notes', 'Source', 'ID', 'Logged at', 'Updated at',
+      ],
+      Events: ['Date', 'Note'],
+      Gaps: ['Start', 'End', 'Reason'],
+      LogOptions: [
+        'Kind', 'Label', 'Type', 'Medication', 'MonthlyLimit', 'DailyLimit', 'Archived', 'Watched',
+      ],
     });
   });
 
