@@ -2,7 +2,9 @@
 
 If you've been tracking in another app, a spreadsheet, or a journal, that history can come with you into Dusknote. Dusknote imports CSV files whose columns are exactly the columns of its own Google Sheet, so an import file looks just like your data already does: readable, checkable, and fixable in any spreadsheet app.
 
-An import always **adds**; it never replaces or deletes anything. Importing the same file twice is safe, because rows the app already has are recognized and skipped. And a file with any problem imports **nothing**: the app rejects it whole and tells you the exact row and column of each problem, so a half-broken file can never mix bad rows into your record or reach your sheet.
+There are two kinds of import file and they behave differently. Your history (entries, events, gaps) is only ever added to: rows the app already has are recognized and skipped, so importing the same file twice is safe and nothing you have is replaced. Your log options can be changed by a file import, so the app lists every change first and waits for you to Apply.
+
+In both cases, a file with any problem imports nothing, and shows you what is wrong. The app shows an error message, and tells you the exact row and column of each problem, so that you can fix it before trying to re-import it again.
 
 ## Three ways to format the historical data for import
 

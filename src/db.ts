@@ -98,7 +98,7 @@ export async function importBackfill(data: {
   entries: Entry[];
   events: MedEvent[];
   gaps: Gap[];
-}): Promise<{ entries: number; events: number; gaps: number }> {
+}): Promise<{ entries: number; events: number; gaps: number; options: number }> {
   const d = await db();
   const existingIds = new Set((await d.getAllKeys('entries')) as string[]);
   let addedEntries = 0;
@@ -125,7 +125,32 @@ export async function importBackfill(data: {
     await prefs.setGaps([...curGaps, ...newGaps].sort((a, b) => b.start.localeCompare(a.start)));
   }
 
-  return { entries: addedEntries, events: newEvents.length, gaps: newGaps.length };
+  // Put the treatments, symptoms and factors your history mentions onto your option lists, NOW,
+  // while you are looking at the screen that just did it (2026-09-01, Karen).
+  //
+  // This scan already existed, but it only ran when a device took its options from the sheet, so
+  // importing your history left your Log screen showing the app's generic starters and your own
+  // words turned up later, on some future launch, with nothing to connect the two. That is what
+  // made a first import feel broken. Running it here means the names arrive with the history that
+  // mentions them, and the count below says so.
+  //
+  // Safe to run every time: it only ADDS labels the list does not already have, so it is
+  // idempotent, and it never touches an entry. Everything it adds arrives unmarked, because it is
+  // reading words out of your entries and cannot tell a drug from a nap; marking a medication
+  // stays a deliberate tap. Runs against the whole log, not just the imported rows, so a label
+  // that was already orphaned gets picked up too.
+  const beforeVocab = (await prefs.vocab()) ?? [];
+  const allEntries = (await listEntries()).filter((e) => !e.deleted);
+  const withOrphans = repairVocab(reconcileOrphans(beforeVocab, allEntries));
+  const addedOptions = withOrphans.length - beforeVocab.length;
+  if (addedOptions > 0) await prefs.setVocab(withOrphans);
+
+  return {
+    entries: addedEntries,
+    events: newEvents.length,
+    gaps: newGaps.length,
+    options: addedOptions,
+  };
 }
 
 /**
