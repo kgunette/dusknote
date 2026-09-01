@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { buildTabs, isEmptySnapshot, parseTabs, type SyncSnapshot } from './serialize';
+import {
+  buildTabs,
+  HEADERS,
+  isEmptySnapshot,
+  parseTabs,
+  SHEET_SCHEMA_VERSION,
+  type SyncSnapshot,
+  TAB_ORDER,
+} from './serialize';
 import { RATING_WORDS } from '../seeds';
 import type { Entry } from '../types';
 
@@ -246,5 +254,37 @@ describe('reading a sheet written before the rename', () => {
     expect(prefs!.values[0]).toEqual([
       'Kind', 'Label', 'Type', 'Medication', 'MonthlyLimit', 'DailyLimit', 'Archived', 'Watched',
     ]);
+  });
+});
+
+// A GUARD, not a description. SHEET_SCHEMA_VERSION is what makes a header change count as
+// something worth pushing: without a bump, a device whose DATA is unchanged never re-writes its
+// sheet, so the new columns never appear. That has now been missed twice in two days (the
+// DailyLimit column, then the LogOptions/MonthlyLimit rename), both times by writing the new
+// version into a comment and not into the constant.
+//
+// So: change a header row, and this test fails until you bump the version too. Update both
+// together, deliberately.
+describe('the sheet schema version tracks the headers', () => {
+  it('fails when a header changes without a version bump', () => {
+    expect({ version: SHEET_SCHEMA_VERSION, headers: HEADERS }).toEqual({
+      version: 10,
+      headers: {
+        Entries: [
+          'Date', 'Start', 'Rating', 'Rating word', 'Symptoms', 'Treatments', 'Other factors',
+          'Notes', 'Source', 'ID', 'Logged at', 'Updated at',
+        ],
+        Events: ['Date', 'Note'],
+        Gaps: ['Start', 'End', 'Reason'],
+        LogOptions: [
+          'Kind', 'Label', 'Type', 'Medication', 'MonthlyLimit', 'DailyLimit', 'Archived', 'Watched',
+        ],
+      },
+    });
+  });
+
+  it('names every tab it writes, in the order the sheet shows them', () => {
+    expect(TAB_ORDER).toEqual(['Entries', 'Events', 'Gaps', 'LogOptions']);
+    expect(Object.keys(HEADERS).sort()).toEqual([...TAB_ORDER].sort());
   });
 });
