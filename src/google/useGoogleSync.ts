@@ -19,7 +19,7 @@ import {
   pushTabs,
 } from './sheets';
 import type { SheetCandidate } from './sheetChoice';
-import { buildTabs, isEmptySnapshot, SHEET_SCHEMA_VERSION, type SyncSnapshot } from './serialize';
+import { buildTabs, HEADERS, isEmptySnapshot, type SyncSnapshot } from './serialize';
 import { guardPush } from './reconcile';
 import { forgetBackupState } from './backup';
 import { importSnapshot, reconcileMerge, tombstoneEntryIds, prefs } from '../db';
@@ -125,10 +125,15 @@ export function useGoogleSync(
     };
   }, []);
 
-  // Include the sheet schema version so a header-only rename (which leaves the data unchanged)
-  // still registers as dirty and forces one re-push to update the sheet's columns.
+  // Include the LAYOUT ITSELF (tab names and their columns), not a version number standing in for
+  // it. A rename leaves the data unchanged, so without this the app sees nothing new and skips the
+  // backup, leaving the sheet on its old headers. This used to be a hand-maintained
+  // SHEET_SCHEMA_VERSION that someone had to remember to bump; it was forgotten twice in two days
+  // (the DailyLimit column, then the LogOptions/MonthlyLimit rename), each time leaving a
+  // half-updated sheet that nothing reported. Comparing the real thing removes the step that can
+  // be forgotten.
   const currentHash = useMemo(
-    () => (snapshot ? JSON.stringify({ v: SHEET_SCHEMA_VERSION, snapshot }) : ''),
+    () => (snapshot ? JSON.stringify({ v: HEADERS, snapshot }) : ''),
     [snapshot]
   );
   const dirty = snapshot != null && currentHash !== lastHash;

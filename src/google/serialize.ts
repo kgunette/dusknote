@@ -51,6 +51,9 @@ export const LEGACY_OPTIONS_TAB = 'Preferences';
  *      `medication` and `remedy` type words**, so a tab or an export written before v9 keeps
  *      loading untouched; a sheet picks up the new shape on its next backup, which rewrites that
  *      tab from scratch as every backup does. Nobody has to do anything. */
+/** Descriptive only: the numbering in the history above, so a change can be talked about. NOTHING
+ *  depends on it. The sync compares HEADERS itself (see useGoogleSync), so a rename registers as a
+ *  change on its own and there is no number anyone has to remember to bump. */
 export const SHEET_SCHEMA_VERSION = 10;
 
 export const HEADERS: Record<string, string[]> = {
