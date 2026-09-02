@@ -357,33 +357,6 @@ export function SettingsScreen({
               const bk = getBackupStatus();
               return (
                 <>
-                  {/* Two bullets. First: what the two backups are, plus the read-only-in-app
-                      boundary (the sheet is rewritten on every sync, so it has no memory and a
-                      direct edit is lost on the next push; the monthly PDFs are the only thing
-                      here that keeps a deleted entry). Second: the one-device guidance, its
-                      subject named so "one device" reads as using the app, not the backup. */}
-                  <div className="cap-list">
-                    <div className="cap-item">
-                      <span className="cap-bullet" aria-hidden="true">
-                        •
-                      </span>
-                      <span>
-                        <span className="cap-lead">Two backups in your own Google Drive</span>: a
-                        live sheet to read or export, and monthly PDF snapshots. Make changes in the
-                        app only; sheet edits won&rsquo;t sync back.
-                      </span>
-                    </div>
-                    <div className="cap-item">
-                      <span className="cap-bullet" aria-hidden="true">
-                        •
-                      </span>
-                      <span>
-                        <span className="cap-lead">{APP_NAME} works best on one device.</span> Your
-                        data is safe on several, but the copies can drift out of step.
-                      </span>
-                    </div>
-                  </div>
-
                   <span className="sync-line">
                     <span className="sync-dot" data-state={dotState} aria-hidden="true" />
                     {/* The text is the only carrier of sync state (the dot is decorative), and it
@@ -432,6 +405,42 @@ export function SettingsScreen({
                       {!bk.folderUrl && <div className="caption">Monthly backup · none yet</div>}
                     </>
                   )}
+
+
+                  {/* Below the actions, deliberately: someone opening Settings to press a button
+                      should reach it first. Three short lines, each saying what the screen itself
+                      cannot. The first is the ownership point no button states. The second is the
+                      read-only-in-app boundary: every backup rewrites the whole sheet, so an edit
+                      typed there is overwritten rather than ignored. The third is the one-device
+                      guidance, its subject named so "one device" reads as using the app, not the
+                      backup. The User Manual carries all three in full ("Reading and exporting
+                      your Google Sheet" and "One device, or several?"), so these stay compressed. */}
+                  <div className="cap-list">
+                    <div className="cap-item">
+                      <span className="cap-bullet" aria-hidden="true">
+                        •
+                      </span>
+                      <span>Both backups live in your own Google Drive.</span>
+                    </div>
+                    <div className="cap-item">
+                      <span className="cap-bullet" aria-hidden="true">
+                        •
+                      </span>
+                      <span>
+                        <span className="cap-lead">Make changes in the app.</span> Sheet edits get
+                        replaced by what&rsquo;s in the app.
+                      </span>
+                    </div>
+                    <div className="cap-item">
+                      <span className="cap-bullet" aria-hidden="true">
+                        •
+                      </span>
+                      <span>
+                        <span className="cap-lead">Best on one device.</span> Copies on several can
+                        drift out of step.
+                      </span>
+                    </div>
+                  </div>
 
                   {signingOut ? (
                     <div className="cta-row" style={{ justifyContent: 'center' }}>
