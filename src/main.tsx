@@ -13,7 +13,7 @@ import {
   requestPersistentStorage,
 } from './google/auth';
 import { prefs } from './db';
-import { setConditionNoun } from './config';
+import { IS_DEMO, setConditionNoun } from './config';
 
 // Handle a return from Google (token in the URL fragment), reconcile the durable "connected"
 // flag, and, if needed, kick a silent renewal — all before anything renders. If we're
@@ -21,6 +21,18 @@ import { setConditionNoun } from './config';
 async function boot() {
   handleAuthReturn();
   requestPersistentStorage();
+
+  // The try-it demo starts over on every visit: whatever the last visitor typed is replaced by
+  // the sample data before anything renders, so the demo can never accumulate a real record.
+  // Loaded on demand so a personal copy never downloads the sample data.
+  if (IS_DEMO) {
+    document.documentElement.classList.add('demo'); // the phone-sized frame on a wide screen
+    try {
+      await (await import('./demo')).seedDemo();
+    } catch {
+      /* a demo that fails to reseed still runs on whatever it holds */
+    }
+  }
 
   // The "connected here" marker normally lives in localStorage, which iOS can evict (while the
   // entries in IndexedDB survive). Mirror it to IndexedDB and restore it on launch, so a wipe

@@ -5,7 +5,7 @@ import { AppMark } from '../components/AppMark';
 import { XCircleIcon } from '../components/icons';
 import { getBackupStatus } from '../google/backup';
 import { type GoogleSync } from '../google/useGoogleSync';
-import { APP_NAME, APP_VERSION, GOOGLE_CLIENT_ID, SITE_URL } from '../config';
+import { APP_NAME, APP_VERSION, GOOGLE_CLIENT_ID, IS_DEMO, SITE_URL } from '../config';
 import { parseImportCsv, type PrefFile } from '../importCsv';
 
 // Injected at build time by vite.config.ts (the git short SHA). Shown in the footer so the
@@ -247,7 +247,13 @@ export function SettingsScreen({
         <div className="card col">
           <div className="card-title">Backup</div>
 
-          {google.phase === 'disconnected' && !GOOGLE_CLIENT_ID && (
+          {google.phase === 'disconnected' && !GOOGLE_CLIENT_ID && IS_DEMO && (
+            <div className="caption">
+              There is no backup in the demo. Your own copy backs up to your own Google Sheet; the
+              setup guide covers it.
+            </div>
+          )}
+          {google.phase === 'disconnected' && !GOOGLE_CLIENT_ID && !IS_DEMO && (
             <div className="caption">
               Google backup isn’t set up for this copy of the app yet (it needs a Google Client
               ID, a later setup step). Your entries still save on this device. The setup guide

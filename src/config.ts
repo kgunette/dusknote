@@ -44,6 +44,13 @@ export const SITE_DISPLAY = SITE_URL.replace(/^https?:\/\//, '');
  *  of offering Connect. */
 export const GOOGLE_CLIENT_ID: string = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
+/** True only on the public try-it demo (demo.dusknote.app), where the build sets VITE_DEMO=1.
+ *  A demo build reloads its sample data on every visit and wears a banner saying so. It also
+ *  ships with no Client ID, so nothing typed into it can be backed up anywhere. A personal copy
+ *  never sets this, and the setup guide never mentions it: it is the project's own deployment
+ *  flag, not a per-deployer setting. */
+export const IS_DEMO: boolean = import.meta.env.VITE_DEMO === '1';
+
 // ---- The condition noun: what you call the thing you track ("episode", "headache", "flare").
 // Personalization, so it is user data, set in-app (Log options → What you track), stored in
 // prefs, synced via the sheet, loaded before first render (main.tsx) into this module-level

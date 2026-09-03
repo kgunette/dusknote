@@ -25,6 +25,7 @@ import { SettingsScreen } from './screens/SettingsScreen';
 import { useGoogleSync } from './google/useGoogleSync';
 import { UpdateBanner } from './components/UpdateBanner';
 import { BackupBanner } from './components/BackupBanner';
+import { DemoBanner } from './components/DemoBanner';
 
 // The report pulls in pdfmake + an embedded font (a few MB). Lazy-load it so logging — the
 // common path — never downloads or parses any of that. The same heavy code powers the monthly
@@ -401,6 +402,7 @@ export default function App() {
 
   return (
     <div className="app" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      <DemoBanner />
       <UpdateBanner />
       {/* The backup banner lives on the Log screen only (where an unbacked logging window would
           happen) and never over an open form. It surfaces the silent reconnect state and confirms
