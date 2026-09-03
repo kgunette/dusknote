@@ -11,4 +11,6 @@ declare const __APP_VERSION__: string;
 // user data, set in-app — never an env var.
 interface ImportMetaEnv {
   readonly VITE_GOOGLE_CLIENT_ID?: string;
+  /** '1' on the project's own try-it demo build only (see config.ts). Not a deployer setting. */
+  readonly VITE_DEMO?: string;
 }
