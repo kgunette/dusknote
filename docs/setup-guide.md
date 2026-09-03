@@ -140,9 +140,9 @@ Dusknote works best on one device. Everything you log lives on that phone and ba
 
 ## Keeping your app up-to-date
 
-When a new version exists, the app shows a banner. Updating is two steps, and only requires you to do one thing: 
-1. on your fork's GitHub page, click **Sync fork → Update branch**
-2. Vercel redeploys on its own within a couple of minutes. To confirm it worked, the bottom of **Settings → Backup** section shows a `build` code that changes with each version.
+When a new version exists, the app shows a banner. Updating is two steps, and only requires you to do one thing:
+1. On your fork's GitHub page, click **Sync fork → Update branch**
+2. Vercel redeploys on its own within a couple of minutes. To confirm it worked, the bottom of the **Settings → Backup** section shows a `build` code that changes with each version.
 
 ## Uninstalling Dusknote
 
