@@ -1,11 +1,11 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Entry, Gap, MedEvent } from '../types';
 import { fmtDateFull, fmtMonth, fmtRelativeTime, uid } from '../lib';
 import { AppMark } from '../components/AppMark';
 import { XCircleIcon } from '../components/icons';
 import { getBackupStatus } from '../google/backup';
 import { type GoogleSync } from '../google/useGoogleSync';
-import { APP_NAME, APP_VERSION, GOOGLE_CLIENT_ID, IS_DEMO, SITE_URL } from '../config';
+import { APP_NAME, APP_VERSION, GOOGLE_CLIENT_ID, IS_DEMO, SITE_DISPLAY, SITE_URL } from '../config';
 import { parseImportCsv, type PrefFile } from '../importCsv';
 
 // Injected at build time by vite.config.ts (the git short SHA). Shown in the footer so the
@@ -95,6 +95,43 @@ export function SettingsScreen({
   const [removing, setRemoving] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [importMsg, setImportMsg] = useState<string | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
+  useEffect(() => {
+    if (!shareCopied) return;
+    const t = setTimeout(() => setShareCopied(false), 3500);
+    return () => clearTimeout(t);
+  }, [shareCopied]);
+
+  // Shares the product page, never this copy's own address: a personal deployment is private to
+  // its owner, and dusknote.app is where a friend tries the demo and sets up their own. The
+  // phone's share sheet where there is one (iOS and Android browsers), a copied link everywhere
+  // else. Closing the share sheet without sending is not an error, so it says nothing.
+  async function copyShareLink() {
+    try {
+      await navigator.clipboard.writeText(SITE_URL);
+      setShareCopied(true);
+    } catch {
+      // Clipboard refused (some desktop browsers outside a secure context). Nothing to say
+      // that the maker's mark below does not already offer: it opens the same page.
+    }
+  }
+  async function handleShare() {
+    if (typeof navigator.share !== 'function') {
+      await copyShareLink();
+      return;
+    }
+    try {
+      await navigator.share({
+        title: APP_NAME,
+        text: 'Your health notes, on your phone, yours forever.',
+        url: SITE_URL,
+      });
+    } catch (err) {
+      if ((err as { name?: string } | null)?.name === 'AbortError') return;
+      // Some desktop browsers expose share() and then refuse to open it.
+      await copyShareLink();
+    }
+  }
   const [importing, setImporting] = useState(false);
   // Local draft of the report name; committed to the app (and the synced pref) on blur.
   const [nameDraft, setNameDraft] = useState(patientName);
@@ -666,6 +703,26 @@ export function SettingsScreen({
             </div>
           )}
         </div>
+
+        {/* One quiet line above the maker's mark, in the sign-out style: the share icon and
+            "Share Dusknote with a friend". It sits with the mark because it is about the app,
+            never about the person's records. After a copy (no share sheet) the same line reads
+            "Link copied" for a few seconds, then goes back. Mockup: dusknote-share-mockup.html
+            (Darkroom), decided 2026-09-03. */}
+        <button
+          type="button"
+          className={shareCopied ? 'share-line copied' : 'share-line'}
+          onClick={handleShare}
+        >
+          {shareCopied ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3v12" /><path d="M8 7l4-4 4 4" /><path d="M8 11H6.5A1.5 1.5 0 0 0 5 12.5v7A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-7a1.5 1.5 0 0 0-1.5-1.5H16" /></svg>
+          )}
+          <span role="status">
+            {shareCopied ? `Link copied: ${SITE_DISPLAY}` : `Share ${APP_NAME} with a friend`}
+          </span>
+        </button>
 
         {/* The maker's mark. No personal name: attribution lives in LICENSE (which MIT makes every
             fork carry) and on the other end of this link, and a stranger's own health tracker
