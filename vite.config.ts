@@ -41,7 +41,7 @@ export default defineConfig({
       manifest: {
         name: APP_NAME,
         short_name: APP_NAME,
-        description: 'A calm, local-device-first tracker for any chronic health condition',
+        description: 'A calm, local-device-first tracker for any ongoing health condition',
         display: 'standalone',
         background_color: '#12151d',
         theme_color: '#12151d',

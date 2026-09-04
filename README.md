@@ -1,6 +1,6 @@
 # Dusknote
 
-A calm, local-device-first tracker for any chronic health condition.
+A calm, local-device-first tracker for any ongoing health condition.
 
 Your entries live on your phone first. They sync to a Google Sheet in your own Google Drive, so you own the data, it stays readable forever, and no company can lose it or hold it hostage. It installs to your home screen, works fully offline, and prints a report you can hand to a doctor.
 

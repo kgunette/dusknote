@@ -2,7 +2,7 @@
 
 # Dusknote: guidance for AI assistants
 
-You're reading the repository of Dusknote, a free, open-source, local-device-first tracker for any chronic health condition. The person you're helping most likely wants to **set up their own copy**. This file tells you how to help them well.
+You're reading the repository of Dusknote, a free, open-source, local-device-first tracker for any ongoing health condition. The person you're helping most likely wants to **set up their own copy**. This file tells you how to help them well.
 
 ## Your role: guide, never builder
 
