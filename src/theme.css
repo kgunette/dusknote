@@ -881,8 +881,27 @@ input[type='number']::-webkit-outer-spin-button {
 /* The maker's mark at the foot of Settings: logo + wordmark, linking to the project's front door.
    Reads as a quiet credit, not an action, so it keeps the caption tone and takes no accent colour
    or underline until touched. */
+/* The "Share Dusknote with a friend" line above the maker's mark: same size and color as
+   Sign out of Google, with the share icon in front so it reads as something you tap. Turns
+   accent for the few seconds it says "Link copied" after a copy. */
+.share-line {
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  font-family: inherit;
+  padding: 8px;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+.share-line:active { color: var(--text); }
+.share-line.copied { color: var(--accent); }
+
 .footer-mark {
-  margin-top: 4px;
+  margin-top: 0;
   display: flex;
   align-items: center;
   justify-content: center;
