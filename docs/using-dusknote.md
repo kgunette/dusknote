@@ -171,6 +171,12 @@ Validation is strict: a file with any problem imports nothing, and errors will s
 
 **App limitations.** English only, US date formats, 12-hour times, weeks starting on Sunday. There are no settings to change these at this time.
 
+## Sharing Dusknote with a friend
+
+At the bottom of the Settings tab, below Import, there is a line that reads "Share Dusknote with a friend". Tap it and your phone's share sheet opens with the dusknote.app link, ready to send in a message. On a browser with no share sheet, it copies the link instead and gives a confirmation.
+
+The link goes to the Dusknote app page, where your friend can try the demo and set up their own copy. Nothing from your records is included.
+
 ## The update banner
 
 Once a day, the app pings GitHub to verify what the newest version of Dusknote is. When a newer one exists, a banner appears with a link to what's new, but nothing installs itself. When you're ready to update, the [update prompt](ai-prompts.md#the-update-prompt) walks your assistant through it, or you can update manually: on your fork's GitHub page, press **Sync fork → Update branch**, and Vercel redeploys on its own.
