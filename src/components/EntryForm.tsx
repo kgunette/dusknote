@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Attempt, ChipDef, Entry, Helped } from '../types';
 import { fmtDateLine, glyphClass, HELPED_WORD, SAVED_FLASH_MS, toHM, toISODate, uid } from '../lib';
 import { RatingPicker } from './RatingPicker';
@@ -187,6 +187,26 @@ export function EntryForm({
   async function handleDelete() {
     if (existing && onDelete) await onDelete(existing.id);
   }
+
+  // The note box grows with its text and shrinks back, never below the 96px it starts at. Reset
+  // to a small height first so scrollHeight measures the text rather than the old box. Runs
+  // before paint on every text change, and again whenever the box's width changes (the form
+  // opening, a rotation), because the same text wraps to a different number of lines.
+  const notesRef = useRef<HTMLTextAreaElement>(null);
+  const fitNotes = () => {
+    const t = notesRef.current;
+    if (!t) return;
+    t.style.height = '56px';
+    t.style.height = Math.max(96, t.scrollHeight) + 'px';
+  };
+  useLayoutEffect(fitNotes, [notes]);
+  useEffect(() => {
+    const t = notesRef.current;
+    if (!t || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(fitNotes);
+    ro.observe(t);
+    return () => ro.disconnect();
+  }, []);
 
   return (
     <div className="screen">
@@ -385,6 +405,7 @@ export function EntryForm({
         </RevealSection>
 
         <textarea
+          ref={notesRef}
           className="notes"
           value={notes}
           placeholder="Note"
