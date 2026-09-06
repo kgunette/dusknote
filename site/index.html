@@ -3,8 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dusknote · your health notes, on your phone, yours forever</title>
+<title>Dusknote: a free, open-source health tracker you own</title>
 <meta name="description" content="Dusknote is a free forever, open-source tracker for any ongoing health condition. Entries live on your device, back up to a Google Sheet in your own Drive, and export as a report you can share with anyone you choose.">
+<link rel="canonical" href="https://dusknote.app/">
+<!-- Google Analytics counts visits and referrers to this page and to the demo. It is the one
+     script here that is not ours (decided 2026-09-06; the plan's "Measuring impact" section has
+     the reasoning). It is on this page and on demo.dusknote.app only, never in the app anyone
+     deploys. -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-G1RVYB8TW7"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-G1RVYB8TW7');
+</script>
 <!-- The link-preview card (iMessage, Slack, Signal, LinkedIn, and the rest read these). Without
      them each app guesses, and iMessage picked the report screenshot because it was the largest
      image on the page. The app's own page (index.html at the repo root) names the same picture. -->
