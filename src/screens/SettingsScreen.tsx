@@ -106,9 +106,11 @@ export function SettingsScreen({
   // its owner, and dusknote.app is where a friend tries the demo and sets up their own. The
   // phone's share sheet where there is one (iOS and Android browsers), a copied link everywhere
   // else. Closing the share sheet without sending is not an error, so it says nothing.
+  // The link carries a "via" tag naming the button that produced it, so the product page's visit
+  // counter can tell the share sheet from a copied link. It says which button, nothing about who.
   async function copyShareLink() {
     try {
-      await navigator.clipboard.writeText(SITE_URL);
+      await navigator.clipboard.writeText(`${SITE_URL}/?via=copy`);
       setShareCopied(true);
     } catch {
       // Clipboard refused (some desktop browsers outside a secure context). Nothing to say
@@ -124,7 +126,7 @@ export function SettingsScreen({
       await navigator.share({
         title: APP_NAME,
         text: 'Your health notes, on your phone, yours forever.',
-        url: SITE_URL,
+        url: `${SITE_URL}/?via=share`,
       });
     } catch (err) {
       if ((err as { name?: string } | null)?.name === 'AbortError') return;
