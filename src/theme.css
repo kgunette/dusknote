@@ -499,14 +499,12 @@ h2[tabindex='-1']:focus {
   color: var(--text);
   font-size: 1.0625rem;
   line-height: 1.45;
-  /* Grows with its text (EntryForm sets the height on every change) and never shrinks while the
-     form is open, never below 96px, so an empty note looks as it always has. No inner scrolling
-     and no drag handle: the screen scrolls. */
-  resize: none;
-  overflow: hidden;
+  /* A fixed box that scrolls inside itself, about three lines. Two auto-growing versions were
+     tried on 2026-09-10 (#36, #37) and both moved the page around on iOS with the keyboard up,
+     in ways a desktop never shows. The feed shows the whole note; the form does not need to. */
+  resize: vertical;
   height: 96px;
-  min-height: 96px;
-  flex-shrink: 0;
+  min-height: 56px;
   width: 100%;
 }
 
