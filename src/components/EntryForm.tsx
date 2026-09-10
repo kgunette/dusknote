@@ -188,16 +188,18 @@ export function EntryForm({
     if (existing && onDelete) await onDelete(existing.id);
   }
 
-  // The note box grows with its text and shrinks back, never below the 96px it starts at. Reset
-  // to a small height first so scrollHeight measures the text rather than the old box. Runs
-  // before paint on every text change, and again whenever the box's width changes (the form
-  // opening, a rotation), because the same text wraps to a different number of lines.
+  // The note box grows with its text and never shrinks while the form is open, starting at 96px.
+  // It only ever grows: collapsing it to remeasure (the first version did) makes the page jump
+  // on a phone with the keyboard up, because the scroll position loses ground when the box
+  // shrinks and regains it when the box regrows. A box that only grows has nothing to jump for;
+  // the cost is empty space after deleting lines, until the form is next opened. Runs before
+  // paint on every text change, and again whenever the box's width changes (the form opening,
+  // a rotation), because the same text wraps to a different number of lines.
   const notesRef = useRef<HTMLTextAreaElement>(null);
   const fitNotes = () => {
     const t = notesRef.current;
     if (!t) return;
-    t.style.height = '56px';
-    t.style.height = Math.max(96, t.scrollHeight) + 'px';
+    t.style.height = Math.max(96, t.clientHeight, t.scrollHeight) + 'px';
   };
   useLayoutEffect(fitNotes, [notes]);
   useEffect(() => {
