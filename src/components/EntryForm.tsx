@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Attempt, ChipDef, Entry, Helped } from '../types';
 import { fmtDateLine, glyphClass, HELPED_WORD, SAVED_FLASH_MS, toHM, toISODate, uid } from '../lib';
 import { RatingPicker } from './RatingPicker';
@@ -187,28 +187,6 @@ export function EntryForm({
   async function handleDelete() {
     if (existing && onDelete) await onDelete(existing.id);
   }
-
-  // The note box grows with its text and never shrinks while the form is open, starting at 96px.
-  // It only ever grows: collapsing it to remeasure (the first version did) makes the page jump
-  // on a phone with the keyboard up, because the scroll position loses ground when the box
-  // shrinks and regains it when the box regrows. A box that only grows has nothing to jump for;
-  // the cost is empty space after deleting lines, until the form is next opened. Runs before
-  // paint on every text change, and again whenever the box's width changes (the form opening,
-  // a rotation), because the same text wraps to a different number of lines.
-  const notesRef = useRef<HTMLTextAreaElement>(null);
-  const fitNotes = () => {
-    const t = notesRef.current;
-    if (!t) return;
-    t.style.height = Math.max(96, t.clientHeight, t.scrollHeight) + 'px';
-  };
-  useLayoutEffect(fitNotes, [notes]);
-  useEffect(() => {
-    const t = notesRef.current;
-    if (!t || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(fitNotes);
-    ro.observe(t);
-    return () => ro.disconnect();
-  }, []);
 
   return (
     <div className="screen">
@@ -407,7 +385,6 @@ export function EntryForm({
         </RevealSection>
 
         <textarea
-          ref={notesRef}
           className="notes"
           value={notes}
           placeholder="Note"
