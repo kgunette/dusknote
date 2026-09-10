@@ -135,6 +135,12 @@ It's smoothest to leave your sheet named "Dusknote". Moving it into a folder is 
 
 Your sheet also keeps its own history. Google Sheets automatically saves earlier versions, so if anything in it ever changes by accident, you can open File, then Version history, and restore how it looked before.
 
+## Using Dusknote without Google
+
+You don't have to connect Google if you don't want to. Everything you log saves on your phone either way, and the app works the same: logging, Stats, the report, import, and your personalization. The Google connection simply serves as the backup.
+
+Without the Google backup, your phone holds the only copy. There is no sheet, no automated monthly PDF, and if you get a new phone, the app will start empty. What you can do instead is export the report on your own schedule: open the report, turn on every section, and share the PDF to wherever you keep files. A calendar reminder can work well to remind you to do this regularly. The app can't read a PDF to import it back in, so know that a saved report is a record you can always read, not something the app can restore from. You would need to take that PDF information and reformat it into a .csv, which would be some manual work; the [import guide](import-guide.md) covers the format.
+
 ## One device, or several?
 
 Dusknote works best on one device. Everything you log lives on that phone and backs up to your Google Sheet, and a single-device setup is the smoothest. You can run it on more than one device at the same time if you want, and your data is secure either way, but the copies can drift a little out of step and may occasionally ask you which version to keep.

@@ -22,7 +22,14 @@ me what I see, and don't move on until the step worked. I may know very little
 about GitHub, Vercel, or Google Cloud, so use plain language.
 
 Facts about this setup you must respect:
-- It needs three free accounts: GitHub, Vercel, Google.
+- It needs three free accounts: GitHub, Vercel, Google. Google is the backup, and
+  it's optional if someone is concerned with keeping their health data in
+  Google. If I tell you I'm skipping Google, skip steps 4 through 9 and go on to
+  step 10. The consequences of not using Google are that there is no spreadsheet
+  backup, nor are there automated monthly saved full reports to my Google
+  account; my entries then live only on my phone, I will need to export the
+  report myself to keep a copy, and re-importing that data will require a more
+  manual process to format it as a .csv file.
 - There are no secrets anywhere in it. Never ask me to paste a password, token,
   or key into this chat. The one value I'll copy around, a Google OAuth Client
   ID, is public by design. The "client secret" Google shows is unused; tell me
