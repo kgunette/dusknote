@@ -17,7 +17,7 @@ Three free accounts. You may already have some of these:
 
 1. **GitHub** (github.com), where the Dusknote code lives and where your copy of it will live. No account? Create one at github.com before you start; the free plan is all you need.
 2. **Vercel** (vercel.com), which turns your copy of the Dusknote code into a live website. If you don't have an account, you'll create one in step 2 using your GitHub login, so there's nothing to do yet.
-3. **Google**, for signing in and backing up to your own Drive. I will just assume you have a Google account (but if you do not have one, create one at google.com first).
+3. **Google**, for backing up to your own Drive. I will just assume you have a Google account (but if you do not have one, create one at google.com first). **This one is optional.** If you'd rather not keep your health data in Google, skip steps 3 through 8 and go to step 9. The User Manual's [Using Dusknote without Google](using-dusknote.md#using-dusknote-without-google) section says what you can do without it, and what you can't.
 
 **A few things to know before you start:** 
 - **This setup involves no passwords, no secret keys, and nothing sensitive**. You'll sign in to three websites the way you normally do, and the one value you'll copy between screens (a "Client ID") is public by design. If anything ever asks you to paste a password or secret somewhere, something is wrong; stop and check the troubleshooting section.
@@ -48,6 +48,8 @@ When the build finishes, Vercel shows a congratulations screen full of suggestio
 Your app now has an address, shown on the project page under Domains: something like `dusknote-xk29.vercel.app`. Open your newly created app address in your browser, your website is live! Dusknote is now up and running: you can log entries and they save on that device. In the Settings tab, it will say that Google backup isn't set up for this copy of the app yet. This is expected, and we will connect it in the following steps.
 
 ## Step 3: Create a Google Cloud project
+
+Not connecting Google? Skip to [step 9](#step-9-put-it-on-your-phone).
 
 This part has the most screens, but none of it is hard, it's just Google asking you to label things.
 
@@ -120,11 +122,11 @@ Dusknote is built to live on your mobile device's home screen.
 
 Using a different browser? Look in its menu for **Add to Home Screen** or **Install app**; every major phone browser has one or the other.
 
-Open it from the home screen and sign in to Google once there too, since the installed app keeps its own sign-in.
+Open it from the home screen and, if you connected Google, sign in once there too, since the installed app keeps its own sign-in.
 
 ## Step 10: Personalize it
 
-You make Dusknote yours inside the app itself: the word for what you track, your rating words, the name on your report. Those choices are saved with your data, so they back up and populate on a new phone.
+You make Dusknote yours inside the app itself: the word for what you track, your rating words, the name on your report. Those choices are saved with your data. With Google connected, they back up to your sheet alongside your entries and come back on a new phone. Without it, a new phone starts empty and you set them again.
 
 - **Log options → What you track:** the word for the thing you log ("episode", "headache", "flare", your call). The whole app re-words itself based on what makes most sense for you.
 - **Log options:** rename the five rating words, and add your symptoms, treatments, and other factors. Tap the pill next to a treatment to mark it a medication, and give a medication a limit if you want it counted in Stats and your report. Tap the eye on a factor to watch it.
