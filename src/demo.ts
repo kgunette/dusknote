@@ -21,7 +21,7 @@ const V = (label: string, type: VocabItem['type'], extra: Partial<VocabItem> = {
 
 const VOCAB: VocabItem[] = [
   V('Ibuprofen', 'treatment', { medication: true, limit: 10, dailyLimit: 2 }),
-  V('Advil', 'treatment', { medication: true }),
+  V('Acetaminophen', 'treatment', { medication: true }),
   V('Water', 'treatment'),
   V('Rest', 'treatment'),
   V('Heat pack', 'treatment'),
@@ -108,7 +108,7 @@ export function demoSnapshot(today: Date = new Date()): DemoSnapshot {
     entry('demo-t4', ymd(y, m, 12), 4, { time: '06:30', factors: ['Poor sleep', 'Weather'], tx: [attempt('Ibuprofen', '06:45', 'partly'), attempt('Ibuprofen', '10:00', 'yes'), attempt('Ibuprofen', '11:30', 'yes')], notes: 'Woke with it, eased by noon.' }),
     entry('demo-t5', ymd(y, m, 15), null, { time: '12:00', symptoms: ['Dizziness'] }),
     entry('demo-t6', ymd(y, m, 19), 1, { time: '18:00', tx: [attempt('Rest', '18:30', null)] }),
-    entry('demo-t7', ymd(y, m, 22), 5, { time: '05:00', factors: ['Poor sleep'], tx: [attempt('Ibuprofen', '05:15', 'no'), attempt('Advil', '09:00', null)] }),
+    entry('demo-t7', ymd(y, m, 22), 5, { time: '05:00', factors: ['Poor sleep'], tx: [attempt('Ibuprofen', '05:15', 'no'), attempt('Acetaminophen', '09:00', null)] }),
     entry('demo-t8', ymd(y, m, 26), 2, { time: '09:00', symptoms: ['Fatigue'], tx: [attempt('Heat pack', '09:20', 'yes')] }),
   ].filter((e) => Number(e.date.slice(-2)) <= d);
 
@@ -120,8 +120,8 @@ export function demoSnapshot(today: Date = new Date()): DemoSnapshot {
   ];
   const lastMonth = lastMonthSpec.map(([day, rating, helped], i) => {
     const extra: Attempt[] = [];
-    if (day === 4) extra.push(attempt('Advil', '15:00', 'yes'));
-    if (day === 15) extra.push(attempt('Advil', '20:00', 'no'));
+    if (day === 4) extra.push(attempt('Acetaminophen', '15:00', 'yes'));
+    if (day === 15) extra.push(attempt('Acetaminophen', '20:00', 'no'));
     if (day === 8) extra.push(attempt('Rest', '11:00', null));
     return entry(`demo-l${i + 1}`, ymd(ly, lm, day), rating, {
       time: ['06:30', '08:00', '09:30', '07:15'][i % 4],
