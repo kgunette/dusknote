@@ -13,7 +13,7 @@ import {
   requestPersistentStorage,
 } from './google/auth';
 import { prefs } from './db';
-import { IS_DEMO, setConditionNoun } from './config';
+import { IS_DEMO, setConditionNoun, SITE_DISPLAY, SITE_URL } from './config';
 
 // Handle a return from Google (token in the URL fragment), reconcile the durable "connected"
 // flag, and, if needed, kick a silent renewal — all before anything renders. If we're
@@ -27,6 +27,18 @@ async function boot() {
   // Loaded on demand so a personal copy never downloads the sample data.
   if (IS_DEMO) {
     document.documentElement.classList.add('demo'); // the phone-sized frame on a wide screen
+    // Wayfinding around the frame on a wide screen, outside the app itself: a way back to the
+    // product page in the upper left, and a label naming what the frame is. Both are hidden on a
+    // phone, where the demo is the app edge to edge and the in-app banner carries the label.
+    const back = document.createElement('a');
+    back.className = 'back-btn demo-back';
+    back.href = SITE_URL;
+    back.textContent = `\u2039 Back to ${SITE_DISPLAY}`;
+    const label = document.createElement('div');
+    label.className = 'rating-lbl demo-label';
+    label.textContent = 'DUSKNOTE APP DEMO';
+    const root = document.getElementById('root');
+    root?.before(back, label);
     try {
       await (await import('./demo')).seedDemo();
     } catch {
