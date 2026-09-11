@@ -1637,22 +1637,46 @@ input.attempt-time {
   }
   html.demo body {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 14px;
     min-height: 100vh;
   }
   html.demo #root {
     width: 390px;
     height: 844px;
-    max-height: calc(100vh - 48px);
+    max-height: calc(100vh - 96px);
     border-radius: 22px;
     border: 1px solid var(--border-faint);
     overflow: hidden;
   }
+  /* Around the frame, in the app's own styles: the back control (.back-btn) in the link olive,
+     since it leaves the demo for the product page, and the small label style (.rating-lbl, as
+     on CALENDAR KEY) naming the frame. Decided on the 2026-09-11 mockup. */
+  html.demo .demo-back {
+    display: block;
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    color: var(--accent);
+    text-decoration: none;
+  }
+  html.demo .demo-label {
+    display: block;
+    margin: 0;
+  }
+}
+/* On a phone there is no frame: the demo is the app edge to edge, and the in-app banner is the label. */
+.demo-back,
+.demo-label {
+  display: none;
 }
 
 /* The try-it demo's banner: the same card shell as .update-banner, on every tab, never dismissed.
-   It says what the demo is and where to go to keep real records; nothing else in the app changes. */
+   It says what the demo is and where to go to keep real records; nothing else in the app changes.
+   Set in the regular secondary grey (4.7:1 against the card), not the dimmer caption grey it had
+   until 2026-09-11 (3.6:1): a label that says "this is a demo" should clear the small-text guideline. */
 .demo-banner {
   margin: 10px 14px 0;
   padding: 8px 12px;
@@ -1660,7 +1684,7 @@ input.attempt-time {
   border-radius: 10px;
   font-size: 0.8125rem;
   line-height: 1.35;
-  color: var(--muted-dim);
+  color: var(--muted);
 }
 .demo-banner a {
   color: var(--accent);
