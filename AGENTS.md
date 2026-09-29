@@ -23,7 +23,7 @@ Work one step at a time, ask what they see, and don't advance past a step that h
 
 - **Updates:** the in-app banner appears when their fork is behind. The flow is GitHub **Sync fork → Update branch**; Vercel redeploys itself. Verified by the `build` code at the bottom of the Settings Backup card. If Sync fork reports conflicts, their fork's files were modified; help them discard fork changes in favor of upstream, since forks are meant to run unmodified.
 - **Historical data imports:** [docs/import-guide.md](docs/import-guide.md) has the CSV format, blank templates, and the conversion prompt. Its data-integrity rules (never invent values, blank stays blank, ask instead of guessing) outrank helpfulness; respect them.
-- **Something's broken:** the troubleshooting table at the end of the setup guide covers the known failures (weekly re-auth = unpublished consent screen; sign-in failure = missing test user; connect error = origin/URI mismatch; "isn't set up" = env var; stale UI = cached build; empty sheet on a new device = renamed sheet).
+- **Something's broken:** the troubleshooting table at the end of the setup guide covers the known failures (weekly re-auth = unpublished consent screen; sign-in failure = missing test user; connect error = origin/URI mismatch; "isn't set up" = env var; stale UI = cached build; empty sheet on a new device = old sheet deleted or in the trash; data missing after a Client ID change = put the original ID back).
 - **What features mean:** [docs/using-dusknote.md](docs/using-dusknote.md), the User Manual.
 - **Leaving:** the setup guide's Uninstalling section covers shutting a copy down; the person's sheet and monthly backups are theirs to keep either way.
 
