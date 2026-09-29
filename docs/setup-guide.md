@@ -1,6 +1,7 @@
-<!-- Maintainer note: the setup prompt in ai-prompts.md embeds this guide's steps,
-     because a plain chatbot can't read this repo. If the steps change here, update
-     that prompt to match. -->
+<!-- Maintainer note: ai-prompts.md repeats this guide's steps and troubleshooting,
+     because a plain chatbot can't read this repo, and CLAUDE.md and AGENTS.md
+     summarize the troubleshooting table. If this guide changes, check all of them.
+     Step numbers in the setup prompt match this guide's. -->
 
 # Setting up your own Dusknote
 
@@ -38,7 +39,7 @@ A "fork" is GitHub's word for your own copy of the code. Your copy stays linked 
 	1. If you're new to Vercel: click Sign Up, choose the free **Hobby** plan, and pick **Continue with GitHub**, so your Vercel account is simply your GitHub account. 
 	2. If you already have an account: sign in. 
 2. Either way, Vercel may prompt you to set up two-factor authentication; that's your Vercel account's own security, separate from Dusknote. Set it up if you like, or skip it and continue.
-3. Click **Add New… → Project**, and import your Dusknote fork. Vercel shows a list of your GitHub repositories; find your Dusknote fork and click **Import** next to it. Importing connects Vercel to your copy of the code so it can turn it into a live website.
+3. Click **Add New… → Project**, and import your Dusknote fork. The first time, Vercel may ask you to install its GitHub app so it can see your repositories. Click **Install**, choose **Only select repositories**, pick your Dusknote fork, and confirm. That way Vercel sees your Dusknote copy and nothing else in your GitHub account. Back on Vercel, find your Dusknote fork in the list and click **Import** next to it. Importing connects Vercel to your copy of the code so it can turn it into a live website.
 4. Vercel shows a settings screen for the new project. The Application Preset should already say **Vite** (Vercel reads that from the code); if it doesn't, pick Vite from the list. Leave everything else as it is, including the Environment Variables section (we'll come back to this section in Step 6).
 5. **The project name becomes your web address:** the Name field plus `.vercel.app`. The suggested name is fine. Any word works, but don't use your own name or the condition you're tracking; the address lives in a few technical places. If a name's address is already taken, Vercel will assign a variant with a suffix, which works the same.
 6. Click **Deploy** and wait a minute.
@@ -60,7 +61,7 @@ This part has the most screens, but none of it is hard, it's just Google asking 
 5. Now enable the two connections Dusknote uses. In the search bar at the top of the console, type **Google Sheets API**. The results mix in documentation and similarly named products from other companies; click the result named exactly **Google Sheets API** ("Read and write Google Sheets data"), then click **Enable**.
 6. After enabling, Google drops you on a statistics page and suggests creating credentials. Ignore both; step 5 of this guide creates the right kind by its own path. Go back to the search bar and repeat for **Google Drive API**: skip the lookalikes (Drive Activity API, Drive Labels API, products from other companies), click the one named exactly **Google Drive API**, and **Enable**.
 
-Google moves its menus around from time to time, but the names above stay the same. Stay in the Google Cloud tab for Steps 4 and 5 as well.
+Google moves and renames its menus from time to time. If a name doesn't match, look for the closest equivalent. Stay in the Google Cloud tab for Steps 4 and 5 as well.
 
 ## Step 4: The consent screen
 
@@ -98,7 +99,7 @@ One thing to be aware of through this step: Google's screens are written for com
 
 ## Step 7: Connect and check
 
-1. Go back to your Dusknote live app tab, and go to **Settings**, and tap **Connect Google** (if you logged entries first, the button may say **Reconnect Google**; it's the same button). Choose the Google account you added as the test user.
+1. Go back to your Dusknote live app tab, go to **Settings**, and tap **Connect Google** in the **Backup** section. (If you've signed in here before, or an earlier attempt hit an error, it says **Reconnect Google**; it's the same button.) Choose the Google account you added as the test user. If Backup still says Google backup isn't set up, the redeploy from step 6 hasn't happened or hasn't finished; do it, wait for Ready, and reload the app.
 2. Google shows a warning: **"Google hasn't verified this app,"** with "Back to safety" as the big button. This is because your app is still in Testing status, and the developer who invited you is you. Click the small **Continue** link. In step 8 we'll switch this from testing to published, so you won't see this kind of warning again.
 3. The consent screen from step 4 follows. It asks permission to "see, edit, create, and delete only the specific Google Drive files you use with this app": that's the narrow access Dusknote runs on, files it creates and nothing else. An info box may note there's no privacy policy to review and this is true, you never wrote one, and you're the only user. Click **Continue**.
 4. Back in the app, Settings should read "All backed up" within a few seconds, and a spreadsheet named **Dusknote** now exists in your Google Drive.
@@ -108,8 +109,14 @@ One thing to be aware of through this step: Google's screens are written for com
 
 Your app is still in "Testing" status, and Testing expires your Google sign-in every 7 days, with no explanation when it happens. Publishing avoids this behavior in the future.
 
-1. In the Google Cloud console: **Google Auth Platform → Audience → Publish app.**
-2. A dialog asks "Push to production?" and notes that apps with more than 10 domains, a logo, or sensitive scopes will need verification. Dusknote has one domain, no logo, and only the narrow files-it-created permission, so none of that applies to you. Click **Confirm**. Publishing status now reads "In production."
+1. Google needs two links before it will publish. In the Google Cloud console, open **Google Auth Platform → Branding**. The app name and support email are already there from step 4.
+	1. **Application home page:** your app's address, like `https://dusknote-xk29.vercel.app`
+	2. **Application privacy policy link:** your fork's copy of the page explaining where your data lives: `https://github.com/YOUR-GITHUB-USERNAME/dusknote/blob/main/docs/how-your-data-stays-yours.md`
+	3. Leave the logo and the terms of service link empty. A logo is one of the things that sends an app to Google for review.
+	4. Under **Authorized domains**, make sure both domains those links use are listed: your app's address without the `https://` (`dusknote-xk29.vercel.app`) and `github.com`. Google may have added the first one already; click **Add domain** for any that are missing. Until both are listed, Google shows "Missing domain" and won't let you save. This is only a list. Google's note here mentions Search Console, but that's for apps going through Google's review, and yours isn't, so you can skip it.
+	5. Click **Save**.
+2. Now open **Audience → Publish app.**
+3. A dialog asks "Push to production?" and notes that apps with more than 10 domains, a logo, or sensitive scopes will need verification. Dusknote has two domains, no logo, and only the narrow files-it-created permission, so none of that applies to you. Click **Confirm**. Publishing status now reads "In production."
 
 "Publish" sounds bigger than it is, so here is exactly what it does and doesn't do. It stops the weekly expiry, and the "Google hasn't verified this app" warning from step 7 stops appearing too. It does **not** put your app in any store or directory, does **not** let anyone else into your data, and needs no review from Google (Dusknote only requests the narrow files-it-created permission, which is below the threshold that triggers verification). Your Client ID only works from your own app address, and a stranger who somehow finds your app address could only ever create a spreadsheet in *their own* Drive. Your data never becomes reachable to anyone else.
 

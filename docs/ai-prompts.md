@@ -1,7 +1,9 @@
 <!-- Maintainer note: this file is the ONLY copy of these prompts; the README and the
-     product page link here rather than duplicating. The setup prompt embeds the
-     guide's steps because a plain chatbot can't read this repo, so if setup-guide.md
-     changes, change the prompt to match. A note atop setup-guide.md points back here. -->
+     product page link here rather than duplicating. The prompts repeat the setup
+     guide's steps and troubleshooting because a plain chatbot can't read this repo,
+     and CLAUDE.md and AGENTS.md summarize the same troubleshooting table. If
+     setup-guide.md changes, check this file and both of those. Step numbers in the
+     setup prompt match the guide's. A note atop setup-guide.md points back here. -->
 
 # AI Prompts
 
@@ -24,8 +26,8 @@ about GitHub, Vercel, or Google Cloud, so use plain language.
 Facts about this setup you must respect:
 - It needs three free accounts: GitHub, Vercel, Google. Google is the backup, and
   it's optional if someone is concerned with keeping their health data in
-  Google. If I tell you I'm skipping Google, skip steps 4 through 9 and go on to
-  step 10. The consequences of not using Google are that there is no spreadsheet
+  Google. If I tell you I'm skipping Google, skip steps 3 through 8 and go on to
+  step 9. The consequences of not using Google are that there is no spreadsheet
   backup, nor are there automated monthly saved full reports to my Google
   account; my entries then live only on my phone, I will need to export the
   report myself to keep a copy, and re-importing that data will require a more
@@ -34,64 +36,91 @@ Facts about this setup you must respect:
   or key into this chat. The one value I'll copy around, a Google OAuth Client
   ID, is public by design. The "client secret" Google shows is unused; tell me
   to ignore it.
+- Once my Client ID exists, never have me delete it or create a new one,
+  even to fix a sign-in problem. Google ties my sheet to that exact Client
+  ID; a new one can't see the old sheet, so the app starts an empty one.
+  Putting the original ID back in Vercel brings everything back.
 - Never have me edit the app's code. Personalization happens inside the app
   after setup. The only configuration is one environment variable.
 - The deploy path is: fork the repo, then connect the fork to Vercel. Never
   suggest a deploy button or any path that copies the code without forking,
   because a disconnected copy can never receive updates.
 
-The steps, which you will walk me through in order:
+The steps, which you will walk me through in order. The numbers match the
+written setup guide, so if I mention a step number, it means the same step
+in both:
 1. On GitHub: open the Dusknote repository (kgunette/dusknote). First click
-   Watch -> Custom -> Releases while I'm still on the original repo's page,
-   so I hear about new versions and security fixes. Then click Fork ->
-   Create fork, keeping the defaults.
+   Watch -> Custom -> check Releases -> Apply while I'm still on the original
+   repo's page, so I hear about new versions and security fixes. Then click
+   Fork -> Create fork, keeping the defaults.
 2. On Vercel (free Hobby plan; sign up or sign in with my GitHub account):
-   Add New -> Project, import my fork. The settings screen's defaults are
-   right; the preset should say Vite, and the Environment Variables section
-   waits until step 7. The project name becomes my web address: the suggested
-   name is fine, but never my name or my condition. Deploy, and ignore
-   Vercel's suggested extras (plugins, domains, analytics).
-3. Confirm the app runs at my new address. It works device-only at this point;
-   Settings will say Google backup isn't set up yet. That's expected.
-4. On console.cloud.google.com: create a new project (the project picker at
+   Add New -> Project, import my fork. If Vercel first asks to install its
+   GitHub app, have me choose Only select repositories and pick just my
+   fork. The settings screen's defaults are right; the preset should say
+   Vite, and the Environment Variables section waits until step 6. The
+   project name becomes my web address: the suggested name is fine, but
+   never my name or my condition. Deploy, and ignore Vercel's suggested
+   extras (plugins, domains, analytics). Then confirm the app runs at my new
+   address. It works device-only at this point; Settings will say Google
+   backup isn't set up yet. That's expected.
+3. On console.cloud.google.com: create a new project (the project picker at
    the top -> New project), confirm the picker now shows it, then enable two
    APIs by searching their exact names: Google Sheets API and Google Drive
    API. Ignore similarly named third-party results, and ignore the
-   create-credentials suggestion after enabling.
-5. The consent screen, in a console section called Google Auth Platform: from
+   create-credentials suggestion after enabling. Google may advertise free
+   trials or credits along the way; tell me to ignore them. Nothing in this
+   setup uses billing, and I never need to add a credit card.
+4. The consent screen, in a console section called Google Auth Platform: from
    its Overview, click Get started. In the wizard: app name Dusknote, my
    email in the email fields, Audience External (Internal is only for Google
    Workspace companies), agree and Create. Then under Audience, add my own
    Gmail address as a test user. While the app is in Testing status only
    listed test users can sign in, so skipping this breaks the first sign-in.
-   Leave the Publish app button alone until step 9.
-6. Google Auth Platform -> Clients -> Create client -> Web application.
+   Leave the Publish app button alone until step 8.
+5. Google Auth Platform -> Clients -> Create client -> Web application.
    Authorized JavaScript origins: my exact app address with https. Authorized
    redirect URIs: the same address with a trailing slash. Copy the Client ID
    from the confirmation dialog, and ignore its warning about saving the
    client secret; the Client ID stays viewable under Clients, and the secret
    is never used.
-7. In Vercel: Environment Variables (a top-level item in the project's left
-   menu, not under Settings), add (or, if Vercel already created it during
-   import, edit) VITE_GOOGLE_CLIENT_ID = the Client ID. When
-   Vercel warns the VITE_ value is exposed to the browser, mark it as safe;
-   it's public by design. Then redeploy: Deployments -> the deployment row's
-   menu -> Redeploy, and wait for the new row to turn Ready.
-8. In the app: Settings -> Connect Google (the button may say Reconnect), and
-   sign in. Google will warn "Google hasn't verified this app": that's
-   Testing status, and the developer who invited me is me, so Continue. Then
-   confirm Settings soon reads "All backed up" and a spreadsheet named
-   Dusknote appeared in my Drive. Have me log a test entry and find it in the
-   sheet.
-9. Google Auth Platform -> Audience -> Publish app. The dialog says
-   verification applies to apps with more than 10 domains, a logo, or
-   sensitive scopes; none apply to Dusknote. Publishing stops Google expiring
-   my authorization every 7 days, removes the "hasn't verified" warning, and
-   exposes nothing: no store listing, no review, and my Client ID only works
-   from my own address.
-10. Install to my phone's home screen (iPhone: Safari -> Share -> Add to Home
-    Screen, leaving "Open as Web App" on. Android: Chrome menu -> Add to Home
-    screen), and sign in once in the installed app too.
+6. In Vercel: Environment Variables (a top-level item in the project's left
+   menu, not under Settings). If a VITE_GOOGLE_CLIENT_ID row is already
+   there (Vercel often adds one during import), have me delete it from its
+   menu, never edit it: Vercel locks that row, and editing fails with an
+   error saying saved secrets are write-only. Then add a fresh one:
+   VITE_GOOGLE_CLIENT_ID = the Client ID, Type: Config. When Vercel warns
+   the VITE_ value is exposed to the browser, mark it as safe; it's public
+   by design. Then redeploy: Deployments -> the deployment row's menu ->
+   Redeploy, and wait for the new row to turn Ready.
+7. In the app: Settings -> the Backup section -> Connect Google (it says
+   Reconnect Google if I've signed in here before or an earlier attempt
+   hit an error; same button), and sign in. If Backup still says Google
+   backup isn't set up, the step 6 redeploy hasn't happened or hasn't
+   finished; have me do it, wait for Ready, and reload the app. Google
+   will warn "Google hasn't verified this app": that's Testing status, and
+   the developer who invited me is me, so Continue. Then confirm Settings
+   soon reads "All backed up" and a spreadsheet named Dusknote appeared in
+   my Drive. Have me log a test entry and find it in the sheet.
+8. Google Auth Platform -> Branding first, since Google won't publish
+   without two links. Application home page: my app's address. Application
+   privacy policy link: my fork's copy of docs/how-your-data-stays-yours.md,
+   at github.com/MY-USERNAME/dusknote/blob/main/docs/how-your-data-stays-yours.md.
+   Leave the logo empty; a logo triggers Google's review. Under Authorized
+   domains, make sure my app's domain (no https) and github.com are both
+   listed, adding any that are missing, then Save. Authorized domains are
+   only a list, not domain verification: never send me to Google Search
+   Console or have me add a verification file. Then Audience -> Publish
+   app. The dialog says verification applies to apps with more than 10
+   domains, a logo, or sensitive scopes; none apply to Dusknote. Publishing
+   stops Google expiring my authorization every 7 days, removes the "hasn't
+   verified" warning, and exposes nothing: no store listing, no review, and
+   my Client ID only works from my own address.
+9. Install to my phone's home screen (iPhone: Safari -> Share -> Add to Home
+   Screen, leaving "Open as Web App" on. Android: Chrome menu -> Add to Home
+   screen), and sign in once in the installed app too.
+10. Personalize it in the app, under Log options and Settings. For help
+    choosing the words, ai-prompts.md in the Dusknote repository has a
+    personalization prompt to paste into a fresh chat.
 
 Known traps, in case I hit them: a failed first sign-in usually means the
 test-user step was skipped or I used a different Google account; a connect
@@ -172,24 +201,45 @@ I run my own copy of Dusknote, an open-source, local-device-first health tracker
 contents of my health data.
 
 Known issues to check against first:
-- Asked to fully re-sign-in to Google about weekly: my OAuth consent screen
-  is still in "Testing" status. Fix: Google Cloud console -> OAuth consent
-  screen -> Publish app. Safe: no review needed at Dusknote's permission
-  level, and publishing exposes no data.
+- Asked to fully re-sign-in to Google about weekly: my consent screen is
+  still in "Testing" status. Fix: Google Cloud console -> Google Auth
+  Platform -> Branding. Application home page: my app's address.
+  Application privacy policy link: my fork's copy of
+  docs/how-your-data-stays-yours.md on GitHub. Leave the logo empty.
+  Under Authorized domains, list my app's domain and github.com, then
+  Save. Then Audience -> Publish app. Safe: no review needed at
+  Dusknote's permission level, and publishing exposes no data.
+  Authorized domains are only a list; never send me to Google Search
+  Console.
 - First-ever sign-in fails: I'm missing from the consent screen's test-user
   list, or signed in with a different Google account.
 - Connect bounces with an error: the authorized origin or redirect URI in
   Google Cloud doesn't exactly match my app's address (https, typos,
   trailing slash on the redirect URI).
+- Connect fails right after creating or editing the Client ID: Google says
+  these settings can take from 5 minutes to a few hours to take effect.
+  Wait and retry before changing anything.
 - Settings says Google backup isn't set up for this copy: the
   VITE_GOOGLE_CLIENT_ID env var is missing or misnamed in Vercel, or wasn't
   followed by a redeploy.
 - App looks stale after an update: cached build. Swipe the app fully closed,
   reopen, check the "build" code at the bottom of Settings.
-- New device created an empty sheet: the app finds its sheet by the name
-  "Dusknote"; if it was renamed in Drive, rename it back and reconnect.
+- New device shows no history and started an empty sheet: the app finds
+  any sheet it created, whatever it's named, so a rename isn't the cause.
+  The old sheet was deleted or is in Google Drive's trash; restore it from
+  the trash and reconnect.
+- Data missing after a change to the Google or Vercel setup: if the Client
+  ID was deleted or replaced, the new one can't see the sheet the old one
+  created. Put the original Client ID back in Vercel and redeploy; the old
+  sheet was never touched. Never suggest creating a new Client ID as a fix.
+- Changed the Google Sheet by mistake: in the sheet, File -> Version
+  history, and restore an earlier version.
 - "Reconnect" appearing occasionally is normal (sign-in tokens expire);
   entries are always safe on the phone regardless of connection state.
+
+Google renames and moves its console screens sometimes. If what I see
+doesn't match these names, help me find the equivalent rather than
+insisting on the old path.
 
 What I'm seeing:
 ```
